@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2025-01-06
+Last updated: 2025-01-15
 
 ## Snapshot
 
@@ -35,6 +35,7 @@ Last updated: 2025-01-06
    - Log analyzer with SSH + LLM
    - Internet connectivity monitor
    - Scheduler service (APScheduler)
+   - Upstream monitoring service (self-monitoring)
 
 4. **API & Dashboard**
    - FastAPI heartbeat endpoints
@@ -43,6 +44,8 @@ Last updated: 2025-01-06
    - Configuration management UI
    - Quick config update endpoints (PATCH)
    - Health check endpoints
+   - Runtime webhook configuration API
+   - Upstream monitoring configuration API
 
 5. **Client Tools**
    - Heartbeat client script (Bash)
@@ -85,6 +88,15 @@ Last updated: 2025-01-06
 - Docker health checks may need tuning for slower systems
 
 ## Release Notes
+
+- **2025-01-15 v1.2.0** — Schedule-aware monitoring and upstream monitoring
+  - Fixed schedule-aware monitoring logic to prevent false alerts at window boundaries
+  - Added runtime webhook URL configuration via web UI (no restart required)
+  - Implemented upstream monitoring (self-monitoring) capability
+  - Integration with healthchecks.io, Uptime Kuma, and similar services
+  - Database-backed configuration with priority over environment variables
+  - Configurable upstream heartbeat frequency
+  - Enhanced monitoring logic for business hours schedules
 
 - **2025-01-06 v1.1.0** — Configuration management and single container deployment
   - Consolidated all services into single Docker container for easier management
@@ -131,13 +143,13 @@ Last updated: 2025-01-06
 
 ## Current Metrics
 
-- **Codebase**: ~6,000 lines across 52 files
+- **Codebase**: ~6,500 lines across 54 files
 - **Services**: 1 Docker container (consolidated)
-- **API Endpoints**: 13 RESTful endpoints
+- **API Endpoints**: 17 RESTful endpoints
 - **Database Tables**: 5 (hosts, heartbeats, alerts, log_analyses, config)
-- **Background Jobs**: 4 scheduled tasks
-- **Documentation**: 3 comprehensive docs + README
-- **Web UIs**: 2 (Dashboard + Configuration Manager)
+- **Background Jobs**: 5 scheduled tasks
+- **Documentation**: 3 comprehensive docs + README + verification logs
+- **Web UIs**: 2 (Dashboard + Configuration Manager with settings)
 
 ## Next Steps
 
