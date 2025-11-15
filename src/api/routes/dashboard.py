@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/dashboard/data", response_model=DashboardResponse)
+@router.get("/dashboard/data")
 async def get_dashboard_data(db: Session = Depends(get_db)):
     """
     Get dashboard data (hosts status and recent alerts).
@@ -22,22 +22,29 @@ async def get_dashboard_data(db: Session = Depends(get_db)):
         db: Database session
 
     Returns:
-        Dashboard data
+        Dashboard data with host details
     """
     # Get all hosts
     hosts = db.query(Host).all()
 
-    host_statuses = [
-        HostStatus(
-            id=host.id,
-            name=host.name,
-            host_id=host.host_id,
-            status=host.status,
-            last_seen=host.last_seen,
-            is_overdue=host.is_overdue(),
-        )
-        for host in hosts
-    ]
+    # Build heartbeat URLs
+    from src.config import get_settings
+    settings = get_settings()
+
+    host_details = []
+    for host in hosts:
+        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+        host_details.append({
+            "id": host.id,
+            "name": host.name,
+            "host_id": host.host_id,
+            "status": host.status,
+            "last_seen": host.last_seen.isoformat() if host.last_seen else None,
+            "is_overdue": host.is_overdue(),
+            "heartbeat_url": heartbeat_url,
+            "cron_expression": host.cron_expression,
+            "expected_frequency_seconds": host.expected_frequency_seconds,
+        })
 
     # Count by status
     total_hosts = len(hosts)
@@ -50,15 +57,28 @@ async def get_dashboard_data(db: Session = Depends(get_db)):
         db.query(Alert).order_by(Alert.created_at.desc()).limit(10).all()
     )
 
-    return DashboardResponse(
-        hosts=host_statuses,
-        recent_alerts=recent_alerts,
-        total_hosts=total_hosts,
-        hosts_up=hosts_up,
-        hosts_down=hosts_down,
-        hosts_unknown=hosts_unknown,
-        last_updated=datetime.utcnow(),
-    )
+    alert_data = [
+        {
+            "id": alert.id,
+            "host_id": alert.host_id,
+            "alert_type": alert.alert_type,
+            "severity": alert.severity,
+            "message": alert.message,
+            "acknowledged": alert.acknowledged,
+            "created_at": alert.created_at.isoformat(),
+        }
+        for alert in recent_alerts
+    ]
+
+    return {
+        "hosts": host_details,
+        "recent_alerts": alert_data,
+        "total_hosts": total_hosts,
+        "hosts_up": hosts_up,
+        "hosts_down": hosts_down,
+        "hosts_unknown": hosts_unknown,
+        "last_updated": datetime.utcnow().isoformat(),
+    }
 
 
 @router.get("/dashboard")
@@ -101,12 +121,37 @@ async def get_dashboard_html():
                 border-radius: 10px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                 margin-bottom: 30px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            header .header-content {
+                flex: 1;
             }
 
             h1 {
                 color: #333;
                 font-size: 2em;
                 margin-bottom: 10px;
+            }
+
+            .config-button {
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 1em;
+                font-weight: 600;
+                cursor: pointer;
+                text-decoration: none;
+                display: inline-block;
+                transition: background 0.3s;
+            }
+
+            .config-button:hover {
+                background: #5568d3;
             }
 
             .stats {
@@ -256,13 +301,92 @@ async def get_dashboard_html():
                 margin-top: 20px;
                 font-size: 0.9em;
             }
+
+            .summary-table-container {
+                background: white;
+                padding: 30px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                margin-bottom: 30px;
+                overflow-x: auto;
+            }
+
+            .summary-table-container h2 {
+                color: #333;
+                margin-bottom: 20px;
+            }
+
+            .summary-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .summary-table th {
+                background: #f3f4f6;
+                padding: 12px;
+                text-align: left;
+                font-weight: 600;
+                color: #374151;
+                border-bottom: 2px solid #e5e7eb;
+            }
+
+            .summary-table td {
+                padding: 12px;
+                border-bottom: 1px solid #e5e7eb;
+                color: #4b5563;
+            }
+
+            .summary-table tr:hover {
+                background: #f9fafb;
+            }
+
+            .summary-table .url-cell {
+                font-family: monospace;
+                font-size: 0.85em;
+                max-width: 300px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .summary-table .frequency-cell {
+                font-family: monospace;
+                font-size: 0.9em;
+            }
+
+            .summary-table .status-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 12px;
+                font-size: 0.8em;
+                font-weight: 600;
+                text-transform: uppercase;
+            }
+
+            .summary-table .status-badge.up {
+                background: #d1fae5;
+                color: #047857;
+            }
+
+            .summary-table .status-badge.down {
+                background: #fee2e2;
+                color: #b91c1c;
+            }
+
+            .summary-table .status-badge.unknown {
+                background: #fef3c7;
+                color: #92400e;
+            }
         </style>
     </head>
     <body>
         <div class="container">
             <header>
-                <h1>🖥️ Network Monitoring Dashboard</h1>
-                <p id="last-update">Loading...</p>
+                <div class="header-content">
+                    <h1>🖥️ Network Monitoring Dashboard</h1>
+                    <p id="last-update">Loading...</p>
+                </div>
+                <a href="/api/v1/config" class="config-button">⚙️ Configuration</a>
             </header>
 
             <div class="stats">
@@ -284,6 +408,24 @@ async def get_dashboard_html():
                 </div>
             </div>
 
+            <div class="summary-table-container">
+                <h2>📋 Monitored Hosts Summary</h2>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Status</th>
+                            <th>Heartbeat URL</th>
+                            <th>Frequency</th>
+                            <th>Last Ping</th>
+                        </tr>
+                    </thead>
+                    <tbody id="summary-table-body">
+                        <tr><td colspan="5" style="text-align: center; color: #666;">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
             <div id="hosts-container" class="hosts-grid"></div>
 
             <div class="alerts">
@@ -297,6 +439,34 @@ async def get_dashboard_html():
         </div>
 
         <script>
+            function formatLastSeen(lastSeenStr) {
+                if (!lastSeenStr) return 'Never';
+
+                const lastSeen = new Date(lastSeenStr);
+                const now = new Date();
+                const diffMs = now - lastSeen;
+                const diffMins = Math.floor(diffMs / 60000);
+                const diffHours = Math.floor(diffMs / 3600000);
+                const diffDays = Math.floor(diffMs / 86400000);
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                return `${diffDays}d ago`;
+            }
+
+            function formatFrequency(host) {
+                if (host.cron_expression) {
+                    return host.cron_expression;
+                }
+                const minutes = Math.floor(host.expected_frequency_seconds / 60);
+                if (minutes < 60) {
+                    return `Every ${minutes}m`;
+                }
+                const hours = Math.floor(minutes / 60);
+                return `Every ${hours}h`;
+            }
+
             async function fetchDashboardData() {
                 try {
                     const response = await fetch('/api/v1/dashboard/data');
@@ -306,6 +476,8 @@ async def get_dashboard_html():
                     console.error('Error fetching dashboard data:', error);
                     document.getElementById('hosts-container').innerHTML =
                         '<div class="error">Error loading dashboard data. Please check the server.</div>';
+                    document.getElementById('summary-table-body').innerHTML =
+                        '<tr><td colspan="5" style="text-align: center; color: #ef4444;">Error loading data</td></tr>';
                 }
             }
 
@@ -318,6 +490,22 @@ async def get_dashboard_html():
                 document.getElementById('last-update').textContent =
                     `Last updated: ${new Date(data.last_updated).toLocaleString()}`;
 
+                // Update summary table
+                const summaryTableBody = document.getElementById('summary-table-body');
+                if (data.hosts.length === 0) {
+                    summaryTableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #666;">No hosts configured</td></tr>';
+                } else {
+                    summaryTableBody.innerHTML = data.hosts.map(host => `
+                        <tr>
+                            <td><strong>${host.name}</strong></td>
+                            <td><span class="status-badge ${host.status}">${host.status}</span></td>
+                            <td class="url-cell" title="${host.heartbeat_url}">${host.heartbeat_url}</td>
+                            <td class="frequency-cell">${formatFrequency(host)}</td>
+                            <td>${formatLastSeen(host.last_seen)}</td>
+                        </tr>
+                    `).join('');
+                }
+
                 // Update hosts
                 const hostsContainer = document.getElementById('hosts-container');
                 hostsContainer.innerHTML = data.hosts.map(host => `
@@ -327,7 +515,7 @@ async def get_dashboard_html():
                         <span class="status ${host.status}">${host.status}</span>
                         <div class="last-seen">
                             ${host.last_seen
-                                ? `Last seen: ${new Date(host.last_seen).toLocaleString()}`
+                                ? `Last seen: ${formatLastSeen(host.last_seen)}`
                                 : 'Never seen'}
                         </div>
                         ${host.is_overdue ? '<div class="last-seen" style="color: #ef4444; font-weight: bold;">⚠️ Overdue</div>' : ''}
