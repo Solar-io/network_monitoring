@@ -15,6 +15,7 @@ router = APIRouter()
 
 
 @router.post("/heartbeat/{host_id}")
+@router.get("/heartbeat/{host_id}")
 async def receive_heartbeat(
     host_id: str,
     request: Request,
@@ -24,6 +25,8 @@ async def receive_heartbeat(
 ):
     """
     Receive heartbeat from a host.
+
+    Supports both GET and POST methods for maximum compatibility.
 
     Token can be provided in two ways:
     1. As Authorization header: "Bearer <token>"
