@@ -18,9 +18,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY src/ ./src/
 COPY config/ ./config/
+COPY scripts/ ./scripts/
 
 # Create directories for data and logs
 RUN mkdir -p /app/data /app/logs
+
+# Make scripts executable
+RUN chmod +x /app/scripts/*.sh
 
 # Set Python path
 ENV PYTHONPATH=/app

@@ -5,6 +5,7 @@ import secrets
 from datetime import datetime
 from typing import List
 
+from croniter import croniter
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,33 @@ from src.database.schemas import HostCreate, HostResponse, HostStatus, HostUpdat
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def calculate_frequency_from_cron(cron_expr: str) -> int:
+    """
+    Calculate average frequency in seconds from a cron expression.
+
+    Args:
+        cron_expr: Cron expression (e.g., "*/5 * * * *" for every 5 minutes)
+
+    Returns:
+        Estimated frequency in seconds between occurrences
+    """
+    try:
+        base_time = datetime.utcnow()
+        cron = croniter(cron_expr, base_time)
+
+        # Get next 3 occurrences to calculate average interval
+        times = [cron.get_next(datetime) for _ in range(3)]
+
+        # Calculate intervals
+        intervals = [(times[i+1] - times[i]).total_seconds() for i in range(len(times)-1)]
+
+        # Return average interval
+        return int(sum(intervals) / len(intervals))
+    except Exception as e:
+        logger.error(f"Failed to calculate frequency from cron expression '{cron_expr}': {e}")
+        return 300  # Default to 5 minutes
 
 
 @router.get("/hosts", response_model=List[HostStatus])
@@ -70,6 +98,7 @@ async def get_host(host_id: str, db: Session = Depends(get_db)):
         name=host.name,
         host_id=host.host_id,
         heartbeat_url=heartbeat_url,
+        cron_expression=host.cron_expression,
         expected_frequency_seconds=host.expected_frequency_seconds,
         schedule_type=host.schedule_type,
         schedule_config=host.schedule_config,
@@ -107,12 +136,26 @@ async def create_host(host_data: HostCreate, db: Session = Depends(get_db)):
             detail="Host with this name or host_id already exists",
         )
 
+    # Calculate frequency from cron if provided
+    expected_freq = host_data.expected_frequency_seconds
+    if host_data.cron_expression:
+        try:
+            # Validate cron expression
+            croniter(host_data.cron_expression)
+            expected_freq = calculate_frequency_from_cron(host_data.cron_expression)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid cron expression: {str(e)}"
+            )
+
     # Create host
     host = Host(
         name=host_data.name,
         host_id=host_data.host_id,
         token=host_data.token,
-        expected_frequency_seconds=host_data.expected_frequency_seconds,
+        cron_expression=host_data.cron_expression,
+        expected_frequency_seconds=expected_freq,
         schedule_type=host_data.schedule_type,
         schedule_config=host_data.schedule_config,
         grace_period_seconds=host_data.grace_period_seconds,
@@ -137,6 +180,7 @@ async def create_host(host_data: HostCreate, db: Session = Depends(get_db)):
         name=host.name,
         host_id=host.host_id,
         heartbeat_url=heartbeat_url,
+        cron_expression=host.cron_expression,
         expected_frequency_seconds=host.expected_frequency_seconds,
         schedule_type=host.schedule_type,
         schedule_config=host.schedule_config,
@@ -174,6 +218,18 @@ async def update_host(
     # Update fields
     if host_data.name is not None:
         host.name = host_data.name
+    if host_data.cron_expression is not None:
+        try:
+            # Validate cron expression
+            croniter(host_data.cron_expression)
+            host.cron_expression = host_data.cron_expression
+            # Recalculate frequency from cron
+            host.expected_frequency_seconds = calculate_frequency_from_cron(host_data.cron_expression)
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid cron expression: {str(e)}"
+            )
     if host_data.expected_frequency_seconds is not None:
         host.expected_frequency_seconds = host_data.expected_frequency_seconds
     if host_data.schedule_type is not None:
@@ -203,6 +259,7 @@ async def update_host(
         name=host.name,
         host_id=host.host_id,
         heartbeat_url=heartbeat_url,
+        cron_expression=host.cron_expression,
         expected_frequency_seconds=host.expected_frequency_seconds,
         schedule_type=host.schedule_type,
         schedule_config=host.schedule_config,
@@ -256,4 +313,151 @@ async def generate_token():
 
     return {
         "token": token,
+    }
+
+
+@router.get("/hosts/config/all")
+async def get_all_configurations(db: Session = Depends(get_db)):
+    """
+    Get all host configurations in a simplified format for easy viewing.
+
+    Returns:
+        List of host configurations with key settings
+    """
+    hosts = db.query(Host).all()
+
+    configs = []
+    for host in hosts:
+        # Parse log analysis config if present
+        log_analysis_enabled = False
+        if host.log_analysis_config:
+            try:
+                log_config = json.loads(host.log_analysis_config)
+                log_analysis_enabled = log_config.get("enabled", False)
+            except json.JSONDecodeError:
+                log_analysis_enabled = False
+
+        # Build heartbeat URL
+        from src.config import get_settings
+        settings = get_settings()
+        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+
+        configs.append({
+            "host_id": host.host_id,
+            "name": host.name,
+            "status": host.status,
+            "heartbeat_url": heartbeat_url,
+            "cron_expression": host.cron_expression,
+            "heartbeat_frequency_seconds": host.expected_frequency_seconds,
+            "heartbeat_frequency_minutes": host.expected_frequency_seconds // 60,
+            "grace_period_seconds": host.grace_period_seconds,
+            "schedule_type": host.schedule_type,
+            "log_analysis_enabled": log_analysis_enabled,
+            "last_seen": host.last_seen.isoformat() if host.last_seen else None,
+            "created_at": host.created_at.isoformat(),
+            "updated_at": host.updated_at.isoformat(),
+        })
+
+    return {
+        "total": len(configs),
+        "hosts": configs
+    }
+
+
+@router.patch("/hosts/{host_id}/config")
+async def update_host_config(
+    host_id: str,
+    cron_expression: str = None,
+    frequency_seconds: int = None,
+    grace_period_seconds: int = None,
+    schedule_type: str = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Quick update of host configuration (frequency and schedule).
+
+    Args:
+        host_id: Unique host identifier
+        cron_expression: Cron expression for heartbeat frequency (optional, overrides frequency_seconds)
+        frequency_seconds: New heartbeat frequency (optional)
+        grace_period_seconds: New grace period (optional)
+        schedule_type: New schedule type (optional): 'always' or 'business_hours'
+        db: Database session
+
+    Returns:
+        Updated configuration
+    """
+    host = db.query(Host).filter(Host.host_id == host_id).first()
+
+    if not host:
+        raise HTTPException(status_code=404, detail="Host not found")
+
+    # Track what was updated
+    updates = []
+
+    if cron_expression is not None:
+        try:
+            # Validate cron expression
+            croniter(cron_expression)
+            host.cron_expression = cron_expression
+            # Calculate frequency from cron
+            calculated_freq = calculate_frequency_from_cron(cron_expression)
+            host.expected_frequency_seconds = calculated_freq
+            updates.append(f"cron expression to '{cron_expression}' (calculated frequency: {calculated_freq}s)")
+        except Exception as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid cron expression: {str(e)}"
+            )
+    elif frequency_seconds is not None:
+        if frequency_seconds < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Frequency must be at least 10 seconds"
+            )
+        host.expected_frequency_seconds = frequency_seconds
+        updates.append(f"frequency to {frequency_seconds}s ({frequency_seconds // 60}m)")
+
+    if grace_period_seconds is not None:
+        if grace_period_seconds < 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Grace period must be positive"
+            )
+        host.grace_period_seconds = grace_period_seconds
+        updates.append(f"grace period to {grace_period_seconds}s")
+
+    if schedule_type is not None:
+        if schedule_type not in ["always", "business_hours", "custom"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Schedule type must be 'always', 'business_hours', or 'custom'"
+            )
+        host.schedule_type = schedule_type
+        updates.append(f"schedule to {schedule_type}")
+
+    if not updates:
+        raise HTTPException(
+            status_code=400,
+            detail="No updates provided"
+        )
+
+    host.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(host)
+
+    logger.info(f"Updated {host.name} ({host_id}): {', '.join(updates)}")
+
+    return {
+        "status": "success",
+        "host_id": host_id,
+        "name": host.name,
+        "updates": updates,
+        "current_config": {
+            "cron_expression": host.cron_expression,
+            "frequency_seconds": host.expected_frequency_seconds,
+            "frequency_minutes": host.expected_frequency_seconds // 60,
+            "grace_period_seconds": host.grace_period_seconds,
+            "schedule_type": host.schedule_type,
+        }
     }

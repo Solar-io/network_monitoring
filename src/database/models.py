@@ -20,7 +20,8 @@ class Host(Base):
 
     # Heartbeat configuration
     heartbeat_url = Column(String(500), nullable=True)
-    expected_frequency_seconds = Column(Integer, nullable=False)
+    cron_expression = Column(String(255), nullable=True)  # Cron expression for heartbeat frequency
+    expected_frequency_seconds = Column(Integer, nullable=False, default=300)  # Fallback/calculated frequency
     schedule_type = Column(
         String(50), nullable=False, default="always"
     )  # 'always', 'business_hours', 'custom'

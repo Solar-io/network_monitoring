@@ -11,7 +11,8 @@ class HostBase(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=255)
     host_id: str = Field(..., min_length=1, max_length=100)
-    expected_frequency_seconds: int = Field(..., gt=0)
+    cron_expression: Optional[str] = None  # Cron expression for heartbeat frequency
+    expected_frequency_seconds: int = Field(default=300, gt=0)  # Fallback if no cron
     schedule_type: str = Field(default="always")
     schedule_config: Optional[str] = None
     grace_period_seconds: int = Field(default=60, gt=0)
@@ -28,6 +29,7 @@ class HostUpdate(BaseModel):
     """Schema for updating a host."""
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
+    cron_expression: Optional[str] = None
     expected_frequency_seconds: Optional[int] = Field(None, gt=0)
     schedule_type: Optional[str] = None
     schedule_config: Optional[str] = None
