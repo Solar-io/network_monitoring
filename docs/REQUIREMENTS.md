@@ -1,6 +1,7 @@
 # Network Monitoring System - Requirements
 
-Last updated: 2025-11-15
+Last updated: 2025-01-15
+Version: 1.2.0
 
 ## Purpose
 
@@ -48,14 +49,23 @@ Build a comprehensive network and system monitoring platform that:
   - `business_hours`: 8am-6pm Mon-Fri (configurable timezone)
   - `custom`: Custom cron-like schedules
 - Track last seen timestamp for each host
-- REST API endpoint: `POST /api/v1/heartbeat/{host_id}`
-- Token-based authentication for heartbeat pings
+- REST API endpoint: `POST|GET /api/v1/heartbeat/{host_id}` (v1.2.0: Both methods supported)
+- Token-based authentication with two methods:
+  - **Query parameter**: `?token=xxx` (v1.2.0: Recommended - single complete URL)
+  - **Bearer header**: `Authorization: Bearer xxx` (v1.0: Backward compatible)
+- **Schedule-aware monitoring logic** (v1.2.0):
+  - For business hours: if last heartbeat before window start, calculate from window start
+  - Prevents false alerts at monitoring window start times
+  - Example: 8am window start won't alert at 8:01am if last heartbeat was yesterday
 
 **Acceptance Criteria**:
-- Host can send heartbeat via simple HTTP POST
+- Host can send heartbeat via simple HTTP GET or POST
+- URL works in browser (paste and go)
+- Token embedded in URL for easy client setup
 - System correctly identifies missing heartbeats
 - Business hours schedule properly suspends/resumes monitoring
 - Alert triggered when heartbeat missed beyond grace period
+- No false alerts at window start (schedule-aware logic)
 
 ### FR2: Discord Alert System
 **Priority**: Critical
@@ -150,7 +160,7 @@ Build a comprehensive network and system monitoring platform that:
 - Host status accurately reflects monitoring state
 
 ### FR6: Web Dashboard
-**Priority**: Low (MVP), High (Phase 2)
+**Priority**: High (v1.2.0)
 
 **Description**: Simple web interface showing monitoring status.
 
@@ -160,6 +170,11 @@ Build a comprehensive network and system monitoring platform that:
 - Show last seen timestamp
 - Color-coded status indicators
 - Recent alerts list
+- **Copy buttons for heartbeat URLs** (v1.2.0):
+  - One-click copy to clipboard
+  - Visual feedback on copy success
+  - URLs include embedded tokens
+  - Handles special characters correctly
 - No authentication required for MVP (view-only)
 
 **Acceptance Criteria**:
@@ -167,6 +182,8 @@ Build a comprehensive network and system monitoring platform that:
 - Status updates reflect real-time data
 - Responsive design (mobile-friendly)
 - Auto-refresh every 30 seconds
+- Copy buttons work reliably with all URL formats
+- Visual confirmation when URL copied
 
 ### FR7: Configuration Management
 **Priority**: Critical
@@ -176,15 +193,56 @@ Build a comprehensive network and system monitoring platform that:
 **Requirements**:
 - YAML-based host configuration (`config/hosts.yaml`)
 - Environment variable support (`.env` file)
+- **Database-backed runtime configuration** (v1.2.0):
+  - Webhook URL configurable via UI/API
+  - Upstream monitoring settings in database
+  - No container restart required for changes
+  - Priority: Database > Environment Variables
 - Hot-reload configuration changes (where safe)
 - Validation of configuration on startup
 - Example configurations provided
+- **Configuration API endpoints** (v1.2.0):
+  - `GET/PUT /api/v1/settings/webhook`
+  - `GET/PUT /api/v1/settings/upstream`
+  - `GET /api/v1/settings/all`
 
 **Acceptance Criteria**:
 - Hosts loaded from YAML file on startup
 - Environment variables override defaults
 - Invalid configuration causes startup failure with clear error
 - Configuration changes applied without full restart (where possible)
+- Runtime settings changeable via UI without restart
+- Settings API works correctly with validation
+
+### FR8: Upstream Monitoring (Self-Monitoring)
+**Priority**: High (v1.2.0)
+
+**Description**: Monitor the monitoring hub itself by sending heartbeats to external services.
+
+**Requirements**:
+- Scheduled heartbeat to external monitoring service
+- **Configurable via database** (no restart required):
+  - Upstream URL (healthchecks.io, Uptime Kuma, etc.)
+  - Frequency (default: 5 minutes)
+  - Enable/disable toggle
+- Support for standard monitoring services:
+  - healthchecks.io ping URLs
+  - Uptime Kuma push monitors
+  - Any HTTP GET endpoint
+- **UI configuration page** (`/api/v1/config`):
+  - Enable/disable upstream monitoring
+  - Set upstream URL
+  - Configure frequency
+- Logging of successful/failed upstream pings
+- Graceful handling of upstream service failures
+
+**Acceptance Criteria**:
+- Successfully pings configured upstream service on schedule
+- External service alerts if monitoring hub fails
+- Can enable/disable via UI without restart
+- Can change URL and frequency via UI
+- Failed pings logged but don't crash service
+- Meta-monitoring: ensures the monitor itself is monitored
 
 ## Non-Functional Requirements
 
@@ -357,7 +415,17 @@ Optional:
 9. ✅ Docker Compose deployment works on fresh system
 10. ✅ Documentation complete and accurate
 
-**Phase 2 Success**:
+**v1.2.0 Success** (Completed):
+1. ✅ Schedule-aware monitoring prevents false alerts
+2. ✅ Token-embedded URLs simplify client setup
+3. ✅ GET/POST method support improves compatibility
+4. ✅ Copy buttons enhance UI usability
+5. ✅ Runtime configuration system (zero-downtime changes)
+6. ✅ Upstream monitoring ensures hub availability
+7. ✅ Full backward compatibility maintained
+8. ✅ Documentation updated comprehensively
+
+**Phase 2 Success** (Future):
 - PostgreSQL migration complete
 - Web dashboard with authentication
 - Alert acknowledgment workflow
@@ -369,3 +437,80 @@ Optional:
 - Auto-remediation for common issues
 - Machine learning anomaly detection
 - Integration with Prometheus/Grafana
+
+## Version 1.2.0 Feature Summary
+
+### Core Enhancements
+
+**1. Schedule-Aware Monitoring Logic**
+- **Problem Solved**: False alerts at business hours window start
+- **Solution**: Window-based threshold calculation for business_hours schedules
+- **Impact**: No more 8:01am alerts when window starts at 8:00am
+
+**2. Token-Embedded Heartbeat URLs**
+- **Problem Solved**: Complex client configuration (URL + separate token)
+- **Solution**: Single complete URL with embedded token: `?token=xxx`
+- **Impact**: Copy-paste ready, works in browser, simpler setup
+
+**3. HTTP Method Flexibility**
+- **Problem Solved**: POST-only endpoint limited testing/compatibility
+- **Solution**: Support both GET and POST methods
+- **Impact**: Browser-testable, simpler curl, broader tool compatibility
+
+**4. Web UI Copy Buttons**
+- **Problem Solved**: Manual URL copying error-prone
+- **Solution**: One-click copy buttons with visual feedback
+- **Impact**: Faster, more reliable client setup
+
+**5. Runtime Configuration System**
+- **Problem Solved**: Container restart required for config changes
+- **Solution**: Database-backed settings with API/UI management
+- **Impact**: Zero-downtime configuration changes
+
+**6. Upstream Monitoring Service**
+- **Problem Solved**: Monitoring hub itself not monitored
+- **Solution**: Scheduled heartbeats to external services (healthchecks.io, Uptime Kuma)
+- **Impact**: Meta-monitoring ensures hub availability
+
+### Technical Implementation
+
+**Database Schema Changes**:
+- Added `config` table for runtime settings
+- Store webhook URL, upstream monitoring config
+
+**API Additions**:
+- `GET /api/v1/heartbeat/{host_id}` - Accept GET requests
+- `GET/PUT /api/v1/settings/webhook` - Manage webhook URL
+- `GET/PUT /api/v1/settings/upstream` - Manage upstream monitoring
+- `GET /api/v1/settings/all` - Get all runtime settings
+
+**UI Enhancements**:
+- Copy buttons on Dashboard page
+- Copy buttons on Config page
+- Settings management on Config page
+- Data attributes for event handling (special character safety)
+
+**Service Layer**:
+- `UpstreamMonitor` service for self-monitoring
+- Schedule-aware logic in heartbeat checker
+- Settings service for database-backed config
+
+### Backward Compatibility
+
+All v1.2.0 features maintain backward compatibility:
+- Bearer header authentication still works
+- POST method still works
+- Environment variables still override if database settings not present
+- Existing clients require no changes
+
+### Migration Path
+
+**From v1.0 to v1.2.0**:
+1. Update Docker image/code
+2. Restart container (database migration automatic)
+3. Optionally migrate to new features:
+   - Update client scripts to use token-in-URL format
+   - Configure upstream monitoring via UI
+   - Set webhook URL via UI instead of .env
+
+**Zero Breaking Changes**: All v1.0 functionality preserved

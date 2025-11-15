@@ -436,3 +436,255 @@ The system monitors itself:
 - Configuration in version control
 - Docker Compose enables quick redeployment
 - Snapshot script for checkpointing state
+## Recent Architecture Enhancements (v1.2.0)
+
+### Schedule-Aware Monitoring Logic
+
+The heartbeat monitoring system now includes intelligent schedule awareness:
+
+**Window-Based Checking** (Business Hours):
+```python
+def is_overdue(self, current_time):
+    # For business_hours schedule
+    if last_heartbeat < window_start:
+        # Check: window_start + frequency + grace
+        elapsed_since_window = current_time - window_start
+        return elapsed_since_window > threshold
+    else:
+        # Check: last_seen + frequency + grace  
+        elapsed = current_time - last_seen
+        return elapsed > threshold
+```
+
+**Benefits**:
+- Prevents false alerts at monitoring window start
+- Example: 8am-10am window, won't alert at 8:01am if last heartbeat was yesterday
+- Only alerts after: `window_start (8:00) + frequency (5min) + grace (60s) = 8:06`
+
+### Runtime Configuration System
+
+**Database-Backed Settings** (New `config` table):
+- Webhook URL
+- Upstream monitoring configuration
+- Priority: Database > Environment Variables
+- No container restart required for changes
+
+**API Endpoints**:
+- `GET/PUT /api/v1/settings/webhook`
+- `GET/PUT /api/v1/settings/upstream`
+- `GET /api/v1/settings/all`
+
+### Upstream Monitoring Service
+
+**Self-Monitoring Architecture**:
+```
+┌─────────────────────────────────────────┐
+│    Network Monitoring Hub               │
+│                                          │
+│  ┌────────────────────────────────────┐ │
+│  │  Upstream Monitor Service          │ │
+│  │  - Scheduled heartbeat (5 min)     │ │
+│  │  - Database config                 │ │
+│  │  - GET request to external service │ │
+│  └─────────────┬──────────────────────┘ │
+│                │                         │
+└────────────────┼─────────────────────────┘
+                 │
+                 ▼
+     ┌────────────────────────┐
+     │  External Service       │
+     │  - healthchecks.io      │
+     │  - Uptime Kuma          │
+     │  - Alerts if hub fails  │
+     └────────────────────────┘
+```
+
+**Features**:
+- Configurable frequency
+- Enable/disable via UI or API
+- Compatible with healthchecks.io, Uptime Kuma
+- Ensures monitoring hub itself is monitored
+
+### Token-Embedded Heartbeat URLs
+
+**URL Structure**:
+```
+http://server:8080/api/v1/heartbeat/{host_id}?token={secure_token}
+```
+
+**Benefits**:
+- Single complete URL (no separate token config)
+- Copy-paste ready
+- Works with simple curl or browser
+- Backwards compatible with Bearer header
+
+**Authentication Methods**:
+1. Query parameter: `?token=xxx` (new, recommended)
+2. Bearer header: `Authorization: Bearer xxx` (existing)
+
+### Enhanced Web UI
+
+**Copy Button Implementation**:
+```javascript
+// Dashboard & Config pages
+<button class="copy-button" data-url="${host.heartbeat_url}">
+  📋 Copy
+</button>
+
+// Event listener (prevents special char issues)
+button.addEventListener('click', function() {
+    const url = this.getAttribute('data-url');
+    navigator.clipboard.writeText(url);
+    // Visual feedback
+});
+```
+
+**Features**:
+- One-click URL copying
+- Visual feedback (button changes to "✓ Copied!")
+- Works with URLs containing special characters
+- Available on Dashboard and Config pages
+
+### API Method Flexibility
+
+**Heartbeat Endpoint Enhancement**:
+```python
+@router.post("/heartbeat/{host_id}")
+@router.get("/heartbeat/{host_id}")  # Added GET support
+async def receive_heartbeat(
+    host_id: str,
+    token: Optional[str] = None  # Query param
+):
+    # Accepts GET or POST
+    # Token via query param or header
+```
+
+**Benefits**:
+- Browser-testable (paste URL in address bar)
+- Simpler curl commands (no -X POST needed)
+- Compatible with more monitoring tools
+- Maximum flexibility
+
+
+## Component Diagram (Updated)
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                    Network Monitoring Hub v1.2.0                       │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────┐ │
+│  │                     FastAPI API Server (Port 8080)                │ │
+│  │  • Heartbeat endpoints (GET/POST with token in URL)              │ │
+│  │  • Host management API                                            │ │
+│  │  • Settings API (webhook, upstream)                               │ │
+│  │  • Dashboard UI (with copy buttons)                               │ │
+│  │  • Config UI (runtime settings)                                   │ │
+│  └─────────────┬────────────────────────────────────────────────────┘ │
+│                │                                                        │
+│  ┌─────────────▼──────────────────────────────────────────────────┐   │
+│  │              Database Layer (SQLite)                           │   │
+│  │  Tables: hosts, heartbeats, alerts, log_analyses, config       │   │
+│  │  • Runtime configuration (webhook, upstream)                   │   │
+│  │  • Schedule-aware status tracking                              │   │
+│  └─────────────┬──────────────────────────────────────────────────┘   │
+│                │                                                        │
+│  ┌─────────────▼──────────────────────────────────────────────────┐   │
+│  │           APScheduler (Background Jobs)                        │   │
+│  │  • Heartbeat checker (1 min) - Schedule-aware logic            │   │
+│  │  • Log analyzer (30 min)                                       │   │
+│  │  • Upstream heartbeat (5 min) - NEW                            │   │
+│  │  • Health check (1 hour)                                       │   │
+│  │  • Database cleanup (daily)                                    │   │
+│  └─────────────┬──────────────────────────────────────────────────┘   │
+│                │                                                        │
+│  ┌─────────────▼──────────────────────────────────────────────────┐   │
+│  │                    Service Layer                               │   │
+│  │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────┐   │   │
+│  │  │Alert Service │  │Log Analyzer  │  │Upstream Monitor   │   │   │
+│  │  │(Discord)     │  │(SSH + LLM)   │  │(Self-Monitoring)  │   │   │
+│  │  └──────────────┘  └──────────────┘  └───────────────────┘   │   │
+│  └────────────────────────────────────────────────────────────────┘   │
+│                                                                         │
+└────────────┬────────────────────────────────────────────────────┬─────┘
+             │                                                     │
+             ▼                                                     ▼
+┌──────────────────────────┐                      ┌──────────────────────┐
+│  External Services        │                      │  Client Hosts        │
+│  • Discord (alerts)       │                      │  • Send heartbeats   │
+│  • LLM API (analysis)     │                      │  • Via GET/POST      │
+│  • healthchecks.io        │                      │  • Token in URL      │
+│    (upstream monitor)     │                      │                      │
+└──────────────────────────┘                      └──────────────────────┘
+```
+
+## Data Flow (Complete)
+
+### 1. Heartbeat Flow
+```
+Client → GET http://server/heartbeat/web01?token=xxx
+           ↓
+    FastAPI validates token (query param or header)
+           ↓
+    Create heartbeat record in DB
+           ↓
+    Update host.last_seen timestamp
+           ↓
+    Update host.status to 'up'
+           ↓
+    Return success response
+```
+
+### 2. Schedule-Aware Check Flow
+```
+Scheduler (every 1 min)
+    ↓
+For each host:
+    ↓
+Check if monitoring should be active now
+    ↓
+Get window_start time (for business_hours)
+    ↓
+Calculate if overdue:
+    - If last_seen < window_start:
+        elapsed = current_time - window_start
+    - Else:
+        elapsed = current_time - last_seen
+    ↓
+If elapsed > (frequency + grace):
+    ↓
+Send Discord alert
+    ↓
+Update host.status to 'down'
+```
+
+### 3. Upstream Monitoring Flow
+```
+Scheduler (every 5 min)
+    ↓
+Check database config: enabled?
+    ↓
+If enabled:
+    ↓
+GET request to upstream URL
+    ↓
+External service marks hub as alive
+    ↓
+Log success/failure
+```
+
+### 4. Runtime Configuration Flow
+```
+User visits Config UI
+    ↓
+Updates webhook URL or upstream settings
+    ↓
+PUT /api/v1/settings/webhook or /upstream
+    ↓
+Save to config table in database
+    ↓
+Next alert/heartbeat uses new configuration
+    ↓
+No restart required
+```
+
