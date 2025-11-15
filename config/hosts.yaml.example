@@ -1,0 +1,69 @@
+# Example host configuration
+# Copy this file to hosts.yaml and customize for your environment
+#
+# Hosts can be added via:
+# 1. This YAML file (requires restart to apply changes)
+# 2. The add-host.py script (adds to database immediately)
+# 3. The API directly (POST /api/v1/hosts)
+
+hosts:
+  # Example 1: Web server with 24/7 monitoring
+  - name: web-server-01
+    host_id: web01
+    token: CHANGE_ME_TO_SECURE_TOKEN_1
+    expected_frequency: 300  # 5 minutes
+    schedule_type: always
+    grace_period: 60  # 1 minute grace
+
+  # Example 2: Backup server monitored during business hours only
+  - name: backup-server
+    host_id: backup01
+    token: CHANGE_ME_TO_SECURE_TOKEN_2
+    expected_frequency: 3600  # 1 hour
+    schedule_type: business_hours
+    grace_period: 300  # 5 minutes grace
+
+  # Example 3: Firewall with log analysis enabled
+  - name: firewall
+    host_id: fw01
+    token: CHANGE_ME_TO_SECURE_TOKEN_3
+    expected_frequency: 600  # 10 minutes
+    schedule_type: always
+    grace_period: 120  # 2 minutes grace
+    log_analysis_config: |
+      {
+        "enabled": true,
+        "method": "ssh",
+        "ssh_host": "192.168.1.1",
+        "ssh_user": "admin",
+        "ssh_key_path": "/root/.ssh/id_rsa",
+        "log_command": "tail -n 1000 /var/log/firewall.log",
+        "analysis_frequency": 1800,
+        "analysis_prompt": "Analyze these firewall logs for:\n1. Security threats or intrusion attempts\n2. Unusual traffic patterns\n3. Failed authentication attempts\n4. Configuration issues\n\nProvide findings in JSON format with severity levels."
+      }
+
+  # Example 4: Database server with frequent heartbeats
+  - name: database-server
+    host_id: db01
+    token: CHANGE_ME_TO_SECURE_TOKEN_4
+    expected_frequency: 60  # 1 minute
+    schedule_type: always
+    grace_period: 30  # 30 seconds grace
+
+  # Example 5: Development server (business hours only)
+  - name: dev-server
+    host_id: dev01
+    token: CHANGE_ME_TO_SECURE_TOKEN_5
+    expected_frequency: 900  # 15 minutes
+    schedule_type: business_hours
+    grace_period: 180  # 3 minutes grace
+
+# Schedule types:
+# - always: Monitor 24/7
+# - business_hours: Monitor only during configured business hours (see .env)
+# - custom: Custom cron-like schedule (not yet implemented)
+
+# To generate secure tokens:
+# - Use the API: GET /api/v1/hosts/generate-token
+# - Or in bash: openssl rand -base64 32
+# - Or in Python: python -c "import secrets; print(secrets.token_urlsafe(32))"
