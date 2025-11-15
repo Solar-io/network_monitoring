@@ -54,14 +54,50 @@ class Host(Base):
         return f"<Host(id={self.id}, name={self.name}, status={self.status})>"
 
     def is_overdue(self, current_time: Optional[datetime] = None) -> bool:
-        """Check if host heartbeat is overdue."""
+        """
+        Check if host heartbeat is overdue, taking schedule into account.
+
+        For 'always' schedule: Alert if time since last heartbeat exceeds frequency + grace.
+        For 'business_hours'/'custom' schedule: Only check frequency within the monitoring window.
+        - If last heartbeat was before current window started, wait for window_start + frequency + grace
+        - If last heartbeat was within current window, use normal frequency + grace logic
+        """
         if not self.last_seen:
             return True
 
         current_time = current_time or datetime.utcnow()
-        elapsed = (current_time - self.last_seen).total_seconds()
         threshold = self.expected_frequency_seconds + self.grace_period_seconds
 
+        # For 'always' schedule, use simple elapsed time check
+        if self.schedule_type == "always":
+            elapsed = (current_time - self.last_seen).total_seconds()
+            return elapsed > threshold
+
+        # For scheduled monitoring (business_hours, custom), be aware of monitoring windows
+        if self.schedule_type in ["business_hours", "custom"]:
+            from src.utils.schedule_utils import should_monitor_host, get_window_start_time
+
+            # Only consider overdue if we're currently in a monitoring window
+            if not should_monitor_host(self.schedule_type, self.schedule_config, current_time):
+                # Outside monitoring window - never overdue
+                return False
+
+            # We're in a monitoring window - check if last heartbeat was before this window
+            window_start = get_window_start_time(self.schedule_type, self.schedule_config, current_time)
+
+            if window_start and self.last_seen < window_start:
+                # Last heartbeat was before this window started
+                # Check if we're past: window_start + frequency + grace
+                elapsed_since_window_start = (current_time - window_start).total_seconds()
+                return elapsed_since_window_start > threshold
+            else:
+                # Last heartbeat was within this window (or window_start unknown)
+                # Use normal frequency check
+                elapsed = (current_time - self.last_seen).total_seconds()
+                return elapsed > threshold
+
+        # Default to simple check for unknown schedule types
+        elapsed = (current_time - self.last_seen).total_seconds()
         return elapsed > threshold
 
 

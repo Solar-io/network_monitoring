@@ -133,3 +133,51 @@ def should_monitor_host(
 
     # Unknown schedule type, default to always monitor
     return True
+
+
+def get_window_start_time(
+    host_schedule_type: str,
+    custom_schedule_config: Optional[str] = None,
+    current_time: Optional[datetime] = None,
+) -> Optional[datetime]:
+    """
+    Get the start time of the current monitoring window.
+
+    Args:
+        host_schedule_type: Type of schedule ('always', 'business_hours', 'custom')
+        custom_schedule_config: JSON config for custom schedules
+        current_time: Time to check. If None, uses current time.
+
+    Returns:
+        Datetime when the current monitoring window started, or None if not applicable.
+    """
+    if current_time is None:
+        current_time = datetime.utcnow()
+
+    if host_schedule_type == "always":
+        # No window concept for 24x7 monitoring
+        return None
+
+    if host_schedule_type == "business_hours":
+        checker = create_schedule_checker_from_env()
+
+        # Convert to configured timezone
+        if current_time.tzinfo is None:
+            current_time = pytz.utc.localize(current_time)
+        local_dt = current_time.astimezone(checker.timezone)
+
+        # Window starts at the configured start_time today
+        window_start_local = datetime.combine(local_dt.date(), checker.start_time)
+        window_start_local = checker.timezone.localize(window_start_local)
+
+        # Convert back to UTC
+        window_start_utc = window_start_local.astimezone(pytz.utc)
+
+        # Return naive UTC datetime
+        return window_start_utc.replace(tzinfo=None)
+
+    if host_schedule_type == "custom":
+        # TODO: Implement custom schedule logic
+        return None
+
+    return None

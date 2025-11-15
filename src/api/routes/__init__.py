@@ -1,4 +1,4 @@
 """API routes."""
-from src.api.routes import dashboard, heartbeat, hosts
+from src.api.routes import dashboard, heartbeat, hosts, settings
 
-__all__ = ["heartbeat", "hosts", "dashboard"]
+__all__ = ["heartbeat", "hosts", "dashboard", "settings"]

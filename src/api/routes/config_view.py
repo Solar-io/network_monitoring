@@ -353,6 +353,67 @@ async def get_config_html():
                 border-radius: 3px;
                 font-family: 'Courier New', monospace;
             }
+
+            .settings-section {
+                background: white;
+                padding: 25px;
+                border-radius: 10px;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                margin-bottom: 25px;
+            }
+
+            .settings-section h2 {
+                margin-bottom: 20px;
+                color: #333;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .webhook-config {
+                display: flex;
+                gap: 15px;
+                align-items: flex-end;
+            }
+
+            .webhook-config .form-group {
+                flex: 1;
+                margin-bottom: 0;
+            }
+
+            .webhook-config button {
+                background: #10b981;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: 600;
+                height: 42px;
+            }
+
+            .webhook-config button:hover {
+                background: #059669;
+            }
+
+            .webhook-status {
+                margin-top: 10px;
+                padding: 10px;
+                border-radius: 5px;
+                display: none;
+            }
+
+            .webhook-status.success {
+                background: #d1fae5;
+                color: #065f46;
+                display: block;
+            }
+
+            .webhook-status.error {
+                background: #fee2e2;
+                color: #991b1b;
+                display: block;
+            }
         </style>
     </head>
     <body>
@@ -370,6 +431,20 @@ async def get_config_html():
                     <button class="add-host-btn" onclick="openAddModal()">+ Add Host</button>
                 </div>
             </header>
+
+            <!-- System Settings Section -->
+            <div class="settings-section">
+                <h2>🔔 Notification Settings</h2>
+                <div class="webhook-config">
+                    <div class="form-group">
+                        <label>Discord Webhook URL</label>
+                        <input type="url" id="webhook-url" placeholder="https://discord.com/api/webhooks/...">
+                        <small id="webhook-source" style="color: #666;"></small>
+                    </div>
+                    <button onclick="saveWebhookUrl()">Save Webhook</button>
+                </div>
+                <div id="webhook-status" class="webhook-status"></div>
+            </div>
 
             <div class="config-table">
                 <table id="config-table">
@@ -528,6 +603,66 @@ async def get_config_html():
                 if (diffMins < 60) return `${diffMins}m ago`;
                 if (diffHours < 24) return `${diffHours}h ago`;
                 return `${diffDays}d ago`;
+            }
+
+            async function fetchWebhookConfig() {
+                try {
+                    const response = await fetch('/api/v1/settings/webhook');
+                    const data = await response.json();
+
+                    document.getElementById('webhook-url').value = data.webhook_url;
+
+                    // Show source info
+                    const sourceText = data.source === 'database' ?
+                        '(configured in database)' :
+                        data.source === 'environment' ?
+                        '(from environment variable)' :
+                        '(not configured)';
+                    document.getElementById('webhook-source').textContent = sourceText;
+                } catch (error) {
+                    console.error('Error fetching webhook config:', error);
+                }
+            }
+
+            async function saveWebhookUrl() {
+                const webhookUrl = document.getElementById('webhook-url').value;
+                const statusDiv = document.getElementById('webhook-status');
+
+                if (!webhookUrl) {
+                    statusDiv.className = 'webhook-status error';
+                    statusDiv.textContent = 'Please enter a webhook URL';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/v1/settings/webhook', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            webhook_url: webhookUrl
+                        }),
+                    });
+
+                    if (response.ok) {
+                        statusDiv.className = 'webhook-status success';
+                        statusDiv.textContent = '✓ Webhook URL saved successfully!';
+                        document.getElementById('webhook-source').textContent = '(configured in database)';
+
+                        setTimeout(() => {
+                            statusDiv.className = 'webhook-status';
+                        }, 3000);
+                    } else {
+                        const error = await response.json();
+                        statusDiv.className = 'webhook-status error';
+                        statusDiv.textContent = `Error: ${error.detail || 'Failed to save webhook URL'}`;
+                    }
+                } catch (error) {
+                    console.error('Error saving webhook URL:', error);
+                    statusDiv.className = 'webhook-status error';
+                    statusDiv.textContent = 'Error saving webhook URL. Please try again.';
+                }
             }
 
             function updateTable(hosts) {
@@ -704,6 +839,7 @@ async def get_config_html():
 
             // Initial load
             fetchConfigurations();
+            fetchWebhookConfig();
 
             // Refresh every 30 seconds
             setInterval(fetchConfigurations, 30000);

@@ -276,12 +276,31 @@ class DiscordWebhook:
 
 def get_discord_client() -> DiscordWebhook:
     """
-    Get Discord webhook client from settings.
+    Get Discord webhook client from database or settings.
+
+    Priority: Database Config > Environment Variable
 
     Returns:
         DiscordWebhook instance
     """
     from src.config import get_settings
+    from src.database import Config, get_db_context
 
-    settings = get_settings()
-    return DiscordWebhook(settings.discord_webhook_url)
+    # Try to get webhook URL from database first
+    webhook_url = None
+    try:
+        with get_db_context() as db:
+            db_config = db.query(Config).filter(Config.key == "discord_webhook_url").first()
+            if db_config:
+                webhook_url = db_config.value
+                logger.debug("Using webhook URL from database")
+    except Exception as e:
+        logger.warning(f"Could not fetch webhook URL from database: {e}")
+
+    # Fall back to environment variable
+    if not webhook_url:
+        settings = get_settings()
+        webhook_url = settings.discord_webhook_url
+        logger.debug("Using webhook URL from environment")
+
+    return DiscordWebhook(webhook_url)

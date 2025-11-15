@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes import config_view, dashboard, heartbeat, hosts
+from src.api.routes import settings as settings_routes
 from src.config import get_settings
 from src.database import init_db
 
@@ -59,6 +60,7 @@ app.include_router(heartbeat.router, prefix="/api/v1", tags=["heartbeat"])
 app.include_router(hosts.router, prefix="/api/v1", tags=["hosts"])
 app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
 app.include_router(config_view.router, prefix="/api/v1", tags=["configuration"])
+app.include_router(settings_routes.router, prefix="/api/v1", tags=["settings"])
 
 
 @app.get("/")
