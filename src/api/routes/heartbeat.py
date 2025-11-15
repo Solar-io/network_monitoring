@@ -19,15 +19,21 @@ async def receive_heartbeat(
     host_id: str,
     request: Request,
     authorization: Optional[str] = Header(None),
+    token: Optional[str] = None,  # Accept token as query parameter
     db: Session = Depends(get_db),
 ):
     """
     Receive heartbeat from a host.
 
+    Token can be provided in two ways:
+    1. As Authorization header: "Bearer <token>"
+    2. As query parameter: ?token=<token>
+
     Args:
         host_id: Unique host identifier
         request: FastAPI request object
         authorization: Bearer token from header
+        token: Token from query parameter
         db: Database session
 
     Returns:
@@ -40,12 +46,14 @@ async def receive_heartbeat(
         logger.warning(f"Heartbeat from unknown host: {host_id}")
         raise HTTPException(status_code=404, detail="Host not found")
 
-    # Verify token
-    token = None
+    # Verify token - check header first, then query parameter
+    provided_token = None
     if authorization and authorization.startswith("Bearer "):
-        token = authorization[7:]
+        provided_token = authorization[7:]
+    elif token:
+        provided_token = token
 
-    if token != host.token:
+    if provided_token != host.token:
         logger.warning(f"Invalid token for host: {host_id}")
         raise HTTPException(status_code=401, detail="Invalid token")
 

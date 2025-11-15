@@ -91,7 +91,7 @@ async def get_host(host_id: str, db: Session = Depends(get_db)):
     from src.config import get_settings
 
     settings = get_settings()
-    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}?token={host.token}"
 
     return HostResponse(
         id=host.id,
@@ -173,7 +173,7 @@ async def create_host(host_data: HostCreate, db: Session = Depends(get_db)):
     from src.config import get_settings
 
     settings = get_settings()
-    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}?token={host.token}"
 
     return HostResponse(
         id=host.id,
@@ -252,7 +252,7 @@ async def update_host(
     from src.config import get_settings
 
     settings = get_settings()
-    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+    heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}?token={host.token}"
 
     return HostResponse(
         id=host.id,
@@ -340,7 +340,7 @@ async def get_all_configurations(db: Session = Depends(get_db)):
         # Build heartbeat URL
         from src.config import get_settings
         settings = get_settings()
-        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}?token={host.token}"
 
         configs.append({
             "host_id": host.host_id,

@@ -33,7 +33,7 @@ async def get_dashboard_data(db: Session = Depends(get_db)):
 
     host_details = []
     for host in hosts:
-        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}"
+        heartbeat_url = f"http://{settings.api_host}:{settings.api_port}/api/v1/heartbeat/{host.host_id}?token={host.token}"
         host_details.append({
             "id": host.id,
             "name": host.name,
@@ -377,6 +377,46 @@ async def get_dashboard_html():
                 background: #fef3c7;
                 color: #92400e;
             }
+
+            .copy-button {
+                background: #667eea;
+                color: white;
+                border: none;
+                padding: 6px 12px;
+                border-radius: 4px;
+                font-size: 0.8em;
+                cursor: pointer;
+                margin-left: 8px;
+                transition: background 0.2s;
+            }
+
+            .copy-button:hover {
+                background: #5568d3;
+            }
+
+            .copy-button:active {
+                background: #4a5bb8;
+            }
+
+            .copy-button.copied {
+                background: #10b981;
+            }
+
+            .url-container {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .url-text {
+                font-family: monospace;
+                font-size: 0.85em;
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
         </style>
     </head>
     <body>
@@ -467,6 +507,22 @@ async def get_dashboard_html():
                 return `Every ${hours}h`;
             }
 
+            function copyToClipboard(text, button) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalText = button.textContent;
+                    button.textContent = '✓ Copied!';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.textContent = originalText;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    alert('Failed to copy to clipboard');
+                });
+            }
+
             async function fetchDashboardData() {
                 try {
                     const response = await fetch('/api/v1/dashboard/data');
@@ -499,7 +555,12 @@ async def get_dashboard_html():
                         <tr>
                             <td><strong>${host.name}</strong></td>
                             <td><span class="status-badge ${host.status}">${host.status}</span></td>
-                            <td class="url-cell" title="${host.heartbeat_url}">${host.heartbeat_url}</td>
+                            <td>
+                                <div class="url-container">
+                                    <span class="url-text" title="${host.heartbeat_url}">${host.heartbeat_url}</span>
+                                    <button class="copy-button" onclick="copyToClipboard('${host.heartbeat_url}', this)">📋 Copy</button>
+                                </div>
+                            </td>
                             <td class="frequency-cell">${formatFrequency(host)}</td>
                             <td>${formatLastSeen(host.last_seen)}</td>
                         </tr>

@@ -226,6 +226,40 @@ async def get_config_html():
                 background: #dc2626;
             }
 
+            .copy-url-btn {
+                background: #10b981;
+                color: white;
+                border: none;
+                padding: 4px 10px;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.75em;
+                margin-left: 8px;
+                transition: background 0.2s;
+            }
+
+            .copy-url-btn:hover {
+                background: #059669;
+            }
+
+            .copy-url-btn.copied {
+                background: #3b82f6;
+            }
+
+            .url-container {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .url-text {
+                flex: 1;
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
             .modal {
                 display: none;
                 position: fixed;
@@ -682,6 +716,22 @@ async def get_config_html():
                 return `${diffDays}d ago`;
             }
 
+            function copyUrlToClipboard(url, button) {
+                navigator.clipboard.writeText(url).then(() => {
+                    const originalHTML = button.innerHTML;
+                    button.innerHTML = '✓';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.innerHTML = originalHTML;
+                        button.classList.remove('copied');
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Failed to copy URL:', err);
+                    alert('Failed to copy URL to clipboard');
+                });
+            }
+
             async function fetchWebhookConfig() {
                 try {
                     const response = await fetch('/api/v1/settings/webhook');
@@ -841,7 +891,12 @@ async def get_config_html():
                         <td>
                             <span class="status-badge status-${host.status}">${host.status.toUpperCase()}</span>
                         </td>
-                        <td class="url-value" title="${host.heartbeat_url}">${host.heartbeat_url}</td>
+                        <td class="url-value">
+                            <div class="url-container">
+                                <span class="url-text" title="${host.heartbeat_url}">${host.heartbeat_url}</span>
+                                <button class="copy-url-btn" onclick="copyUrlToClipboard('${host.heartbeat_url}', this)">📋</button>
+                            </div>
+                        </td>
                         <td class="config-value">${host.cron_expression || 'N/A'}</td>
                         <td class="config-value">${host.grace_period_seconds}s</td>
                         <td>
