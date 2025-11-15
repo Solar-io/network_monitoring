@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2025-11-15
+Last updated: 2025-01-06
 
 ## Blocked
 
@@ -62,6 +62,16 @@ _No blocked tasks currently_
 - [x] Create troubleshooting guide
 - [x] Add inline code documentation
 
+## M7.5 — Container Consolidation & Configuration Management ✅
+
+- [x] Consolidate 3 Docker containers into single container
+- [x] Create startup script to manage all services in one container
+- [x] Add API endpoint for viewing all configurations (GET /api/v1/hosts/config/all)
+- [x] Add API endpoint for quick config updates (PATCH /api/v1/hosts/{host_id}/config)
+- [x] Build web-based configuration management UI (/api/v1/config)
+- [x] Update documentation for single container architecture
+- [x] Update troubleshooting guide with new container name
+
 ## M8 — Testing & Validation 🔄 (In Progress)
 
 - [ ] Write unit tests for core utilities
@@ -93,8 +103,8 @@ _No blocked tasks currently_
 
 ## MVP Completion Status
 
-**Completed**: M1-M7 (Foundation through Documentation)
+**Completed**: M1-M7.5 (Foundation through Configuration Management)
 **In Progress**: M8 (Testing & Validation)
 **Pending**: M9-M10 (Deployment & Phase 2)
 
-**Overall Progress**: 85% MVP complete
+**Overall Progress**: 88% MVP complete

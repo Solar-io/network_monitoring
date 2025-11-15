@@ -1,11 +1,11 @@
 # Project Status
 
-Last updated: 2025-11-15
+Last updated: 2025-01-06
 
 ## Snapshot
 
 - **Vision**: Comprehensive network and system monitoring platform with heartbeat tracking, LLM-powered log analysis, and internet connectivity monitoring
-- **App**: Fully functional MVP with FastAPI backend, Docker deployment, and web dashboard
+- **App**: Fully functional MVP with FastAPI backend, single-container Docker deployment, web dashboard, and configuration management UI
 - **Docs**: Complete architecture, requirements, and user documentation (README, ARCHITECTURE.md, REQUIREMENTS.md)
 - **Recoverability**: Git initialized, snapshot tags per session; rollback via restore branches
 
@@ -40,6 +40,8 @@ Last updated: 2025-11-15
    - FastAPI heartbeat endpoints
    - Host management REST API
    - Web dashboard (HTML/JS)
+   - Configuration management UI
+   - Quick config update endpoints (PATCH)
    - Health check endpoints
 
 5. **Client Tools**
@@ -84,6 +86,14 @@ Last updated: 2025-11-15
 
 ## Release Notes
 
+- **2025-01-06 v1.1.0** — Configuration management and single container deployment
+  - Consolidated all services into single Docker container for easier management
+  - Added web-based configuration management UI at `/api/v1/config`
+  - Added quick configuration update endpoints (`PATCH /api/v1/hosts/{host_id}/config`)
+  - Added configuration overview endpoint (`GET /api/v1/hosts/config/all`)
+  - Startup script for managing multiple services in one container
+  - Updated documentation for single container architecture
+
 - **2025-11-15 v1.0.0** — Initial MVP implementation
   - Heartbeat monitoring with configurable schedules
   - LLM-powered log analysis
@@ -103,6 +113,7 @@ Last updated: 2025-11-15
 
 2. **Verify Components**
    - Dashboard: http://localhost:8080/api/v1/dashboard
+   - Configuration Manager: http://localhost:8080/api/v1/config
    - Health: http://localhost:8080/api/v1/health
    - API docs: http://localhost:8080/docs (auto-generated)
 
@@ -116,18 +127,17 @@ Last updated: 2025-11-15
    - Verify Discord notification received
 
 5. **Review Logs**
-   - API: `docker-compose logs api`
-   - Scheduler: `docker-compose logs scheduler`
-   - Internet monitor: `docker-compose logs internet-monitor`
+   - All services: `docker-compose logs -f netmon`
 
 ## Current Metrics
 
-- **Codebase**: ~5,800 lines across 51 files
-- **Services**: 3 Docker containers
-- **API Endpoints**: 10+ RESTful endpoints
+- **Codebase**: ~6,000 lines across 52 files
+- **Services**: 1 Docker container (consolidated)
+- **API Endpoints**: 13 RESTful endpoints
 - **Database Tables**: 5 (hosts, heartbeats, alerts, log_analyses, config)
 - **Background Jobs**: 4 scheduled tasks
 - **Documentation**: 3 comprehensive docs + README
+- **Web UIs**: 2 (Dashboard + Configuration Manager)
 
 ## Next Steps
 
@@ -155,4 +165,4 @@ Last updated: 2025-11-15
 - [ ] Input validation comprehensive
 - [ ] Logging to external system (optional)
 
-**Estimated Production Ready**: 85% (needs testing and hardening)
+**Estimated Production Ready**: 88% (needs testing and hardening)
