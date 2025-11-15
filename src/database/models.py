@@ -73,7 +73,7 @@ class Heartbeat(Base):
     host_id = Column(Integer, ForeignKey("hosts.id"), nullable=False, index=True)
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     source_ip = Column(String(45), nullable=True)  # IPv4 or IPv6
-    metadata = Column(Text, nullable=True)  # JSON for additional data
+    extra_data = Column(Text, nullable=True)  # JSON for additional data (renamed from metadata to avoid SQLAlchemy reserved name)
 
     # Relationships
     host = relationship("Host", back_populates="heartbeats")
