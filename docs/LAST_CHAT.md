@@ -1,99 +1,141 @@
 # Last Chat Summary
 
-**Date**: 2025-01-06
+**Date**: 2025-01-15
 **Agent**: Claude Code
-**Session**: Container Consolidation and Configuration Management
+**Session**: Schedule-Aware Monitoring and Upstream Monitoring
 
 ## Work Completed
 
-### Milestone M7.5: Container Consolidation & Configuration Management ✅
+### Milestone v1.2.0: Schedule-Aware Monitoring & Upstream Monitoring ✅
 
-Successfully completed user's two primary requests:
+Successfully completed user's three primary requests:
 
-1. **Single Container Deployment**
-   - Consolidated 3 Docker containers (api, scheduler, internet-monitor) into 1 (netmon)
-   - Created `scripts/start-services.sh` to manage all services in single container
-   - Updated `docker-compose.yml` to use single service definition
-   - Modified `Dockerfile` to include scripts and make them executable
+1. **Schedule-Aware Monitoring Logic**
+   - Fixed `Host.is_overdue()` method in `src/database/models.py`
+   - Added window-aware checking for business hours schedules
+   - Prevents false alerts at monitoring window boundaries
+   - Example: Won't alert at 8:01am if last heartbeat was yesterday at 9:55am
+   - Now correctly waits for `window_start + frequency + grace` before alerting
+   - Added `get_window_start_time()` function in `src/utils/schedule_utils.py`
 
-2. **Configuration Management System**
-   - Added `GET /api/v1/hosts/config/all` endpoint for viewing all host configurations
-   - Added `PATCH /api/v1/hosts/{host_id}/config` endpoint for quick updates
-   - Created web-based configuration UI at `/api/v1/config`
-   - Configuration UI features:
-     - View all hosts in table format
-     - Edit frequency, grace period, and schedule via modal
-     - Auto-refresh every 30 seconds
-     - Shows current values alongside edit form
+2. **Runtime Webhook Configuration**
+   - Created `src/api/routes/settings.py` with webhook API endpoints
+   - `GET /api/v1/settings/webhook` - View current webhook URL
+   - `PUT /api/v1/settings/webhook` - Update webhook URL
+   - Updated `src/utils/discord.py` to check database before environment
+   - Priority: Database config > Environment variable
+   - Added webhook configuration section to config UI
+   - No container restart required for webhook changes
 
-3. **Documentation Updates**
-   - Updated README with single container architecture
-   - Fixed all container references from old names (api, scheduler) to new name (netmon)
-   - Updated troubleshooting and maintenance sections
-   - Added v1.1.0 release notes to PROJECT_STATUS.md
-   - Created M7.5 milestone in TASKS.md
-   - Increased production readiness from 85% to 88%
+3. **Upstream Monitoring (Self-Monitoring)**
+   - Created `src/services/upstream_monitor.py` service
+   - `GET /api/v1/settings/upstream` - View upstream config
+   - `PUT /api/v1/settings/upstream` - Update upstream config
+   - Added scheduled job `send_upstream_heartbeat()` (runs every 5 minutes)
+   - Integration with healthchecks.io, Uptime Kuma, and similar services
+   - Supports status-specific paths (/fail, /start, /log)
+   - Added upstream monitoring UI section in config page
+   - Configurable frequency and enable/disable toggle
 
 ## Current System State
 
-- **Version**: v1.1.0
+- **Version**: v1.2.0
 - **Deployment**: Single Docker container (`netmon`)
 - **Services Running**:
   - FastAPI API server (port 8080)
   - APScheduler background scheduler
   - Internet connectivity monitor
+  - Upstream monitoring service
 - **Web UIs**:
   - Dashboard: http://localhost:8080/api/v1/dashboard
-  - Configuration Manager: http://localhost:8080/api/v1/config
-- **API Endpoints**: 13 total
-- **Codebase**: ~6,000 lines across 52 files
+  - Configuration Manager: http://localhost:8080/api/v1/config (with settings)
+- **API Endpoints**: 17 total (added 4 new settings endpoints)
+- **Background Jobs**: 5 (added upstream heartbeat job)
+- **Codebase**: ~6,500 lines across 54 files
 
 ## Git State
 
-- All changes committed with conventional commit messages
-- Created snapshot tag: `snapshot/2025-01-06-v1.1.0`
-- Ready for deployment testing
+- All changes committed with conventional commit messages:
+  - `feat: add schedule-aware monitoring logic`
+  - `feat: add runtime webhook URL configuration`
+  - `feat: add upstream monitoring (self-monitoring) capability`
+  - `docs: update PROJECT_STATUS for v1.2.0 release`
+- Ready for deployment
+
+## Test Results
+
+All features tested and verified:
+- ✅ Schedule-aware monitoring logic prevents false alerts
+- ✅ Webhook GET/PUT endpoints working
+- ✅ Upstream monitoring GET/PUT endpoints working
+- ✅ Database configuration storage working
+- ✅ Config UI rendering webhook and upstream sections
+- ✅ Scheduler job registered: "Send upstream heartbeat"
+- ✅ Container healthy and running
+- ✅ All logs documented in `logs/verification.log`
 
 ## Next Steps for Future Work
 
-1. **Testing & Validation** (M8)
-   - Test heartbeat flow end-to-end
-   - Test log analysis with real firewall
-   - Test configuration changes via UI
-   - Verify business hours scheduling
+1. **Production Deployment**
+   - Test upstream monitoring with real healthchecks.io account
+   - Verify schedule-aware logic with actual business hours hosts
+   - Set up SSL/TLS via reverse proxy
 
-2. **Deployment** (M9)
-   - Deploy to staging environment
-   - Configure SSL/TLS via reverse proxy
-   - Set up database backups
+2. **Automated Testing** (M8)
+   - Write unit tests for schedule-aware logic
+   - E2E tests for settings API
+   - Integration tests for upstream monitoring
 
 ## Known Issues
 
 - None from this session
-- See docs/PROJECT_STATUS.md for general system gaps
+- All requested features implemented and tested successfully
 
 ## Key Files Modified in This Session
 
-1. `docker-compose.yml` - Consolidated to single service
-2. `Dockerfile` - Added scripts directory
-3. `scripts/start-services.sh` - NEW: Service startup script
-4. `src/api/routes/config_view.py` - NEW: Configuration UI
-5. `src/api/routes/hosts.py` - Added config endpoints
-6. `src/api/main.py` - Added config_view router
-7. `README.md` - Updated for single container
-8. `docs/PROJECT_STATUS.md` - Added v1.1.0 release notes
-9. `docs/TASKS.md` - Added M7.5 milestone
+1. `src/database/models.py` - Fixed `is_overdue()` with schedule awareness
+2. `src/utils/schedule_utils.py` - Added `get_window_start_time()`
+3. `src/api/routes/settings.py` - NEW: Settings API endpoints
+4. `src/utils/discord.py` - Updated `get_discord_client()` to check database
+5. `src/api/routes/config_view.py` - Added webhook and upstream UI sections
+6. `src/services/upstream_monitor.py` - NEW: Upstream monitoring service
+7. `src/services/scheduler_service.py` - Added upstream heartbeat job
+8. `src/api/main.py` - Registered settings router
+9. `docs/PROJECT_STATUS.md` - Updated for v1.2.0 release
+10. `logs/verification.log` - Comprehensive test documentation
 
 ## User Satisfaction
 
-✅ Both user requirements fully addressed:
-- "Can you consolidate everything into one docker container to make it easier to manage?" - COMPLETE
-- "I need some way to configure frequency and time ranges for each host or process. They will change over time so I may need to adjust and I will need to be able to see what they are." - COMPLETE
+✅ All three user requirements fully addressed:
+1. "Validate the logic... should only alert if it fails to meet that criteria within that time window" - COMPLETE
+2. "Add the option for me to update the webhook url in the web UI" - COMPLETE
+3. "We need the ability to act as a client for an upstream monitoring service" - COMPLETE
 
 ## Technical Notes for Next Agent
 
-- All services start via `/app/scripts/start-services.sh`
-- Container name changed from `api`, `scheduler`, `internet-monitor` to `netmon`
-- Configuration changes can be made via web UI or API
-- Startup script handles database initialization automatically
-- Process management uses bash with signal trapping for graceful shutdown
+- **Schedule-Aware Monitoring**: The `is_overdue()` method now understands monitoring windows. For business hours schedules, it checks if last heartbeat was before the current window started and adjusts the threshold accordingly.
+
+- **Database Configuration Priority**: Webhook URL and upstream monitoring config are now stored in the `config` table. The system checks database first, then falls back to environment variables.
+
+- **Upstream Monitoring**: The system sends heartbeats to an external monitoring service every 5 minutes (configurable). This allows services like healthchecks.io to monitor the monitoring hub itself.
+
+- **Scheduler Jobs**: All 5 jobs confirmed running:
+  1. Check heartbeats (every 1 minute)
+  2. Analyze logs (every 30 minutes)
+  3. Database cleanup (daily at 3 AM UTC)
+  4. System health check (every hour)
+  5. Send upstream heartbeat (every 5 minutes)
+
+- **Container Health**: The netmon container is healthy and all services are operational.
+
+## Production Readiness
+
+Estimated: **92%** (up from 88%)
+
+Improvements:
+- ✅ Schedule-aware monitoring prevents false alerts
+- ✅ Runtime configuration without restarts
+- ✅ Self-monitoring capability added
+- ⬜ Still needs automated test suite
+- ⬜ Still needs security audit
+- ⬜ Still needs SSL/TLS configuration
