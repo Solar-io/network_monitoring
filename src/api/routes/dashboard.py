@@ -558,13 +558,21 @@ async def get_dashboard_html():
                             <td>
                                 <div class="url-container">
                                     <span class="url-text" title="${host.heartbeat_url}">${host.heartbeat_url}</span>
-                                    <button class="copy-button" onclick="copyToClipboard('${host.heartbeat_url}', this)">📋 Copy</button>
+                                    <button class="copy-button" data-url="${host.heartbeat_url}">📋 Copy</button>
                                 </div>
                             </td>
                             <td class="frequency-cell">${formatFrequency(host)}</td>
                             <td>${formatLastSeen(host.last_seen)}</td>
                         </tr>
                     `).join('');
+
+                    // Attach click handlers to copy buttons
+                    document.querySelectorAll('.copy-button').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const url = this.getAttribute('data-url');
+                            copyToClipboard(url, this);
+                        });
+                    });
                 }
 
                 // Update hosts

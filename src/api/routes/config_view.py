@@ -894,7 +894,7 @@ async def get_config_html():
                         <td class="url-value">
                             <div class="url-container">
                                 <span class="url-text" title="${host.heartbeat_url}">${host.heartbeat_url}</span>
-                                <button class="copy-url-btn" onclick="copyUrlToClipboard('${host.heartbeat_url}', this)">📋</button>
+                                <button class="copy-url-btn" data-url="${host.heartbeat_url}">📋</button>
                             </div>
                         </td>
                         <td class="config-value">${host.cron_expression || 'N/A'}</td>
@@ -909,6 +909,14 @@ async def get_config_html():
                         </td>
                     </tr>
                 `).join('');
+
+                // Attach click handlers to copy buttons
+                document.querySelectorAll('.copy-url-btn').forEach(button => {
+                    button.addEventListener('click', function() {
+                        const url = this.getAttribute('data-url');
+                        copyUrlToClipboard(url, this);
+                    });
+                });
             }
 
             function openAddModal() {
