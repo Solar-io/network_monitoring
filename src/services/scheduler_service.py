@@ -11,6 +11,7 @@ from src.config import get_settings
 from src.database import Host, get_db_context
 from src.services.alert_service import get_alert_service
 from src.services.log_analyzer import LogAnalyzerService
+from src.services.upstream_monitor import get_upstream_monitor
 from src.utils.schedule_utils import should_monitor_host
 
 # Configure logging
@@ -144,6 +145,27 @@ def cleanup_old_records():
         )
 
 
+def send_upstream_heartbeat():
+    """
+    Send heartbeat to upstream monitoring service.
+
+    This ensures an external service knows this monitoring hub is alive.
+    """
+    logger.info("Sending upstream heartbeat")
+
+    try:
+        upstream_monitor = get_upstream_monitor()
+        success = upstream_monitor.send_heartbeat()
+
+        if success:
+            logger.info("Upstream heartbeat sent successfully")
+        else:
+            logger.warning("Upstream heartbeat not sent (disabled or failed)")
+
+    except Exception as e:
+        logger.error(f"Error sending upstream heartbeat: {e}")
+
+
 def health_check():
     """
     Periodic health check of the monitoring system itself.
@@ -229,6 +251,16 @@ def run_scheduler():
         replace_existing=True,
     )
     logger.info("Added job: Health check (every hour)")
+
+    # Upstream heartbeat - every 5 minutes (configurable frequency is checked by the service)
+    scheduler.add_job(
+        send_upstream_heartbeat,
+        trigger=IntervalTrigger(minutes=5),
+        id="upstream_heartbeat",
+        name="Send upstream heartbeat",
+        replace_existing=True,
+    )
+    logger.info("Added job: Upstream heartbeat (every 5 minutes)")
 
     logger.info("Starting scheduler...")
     logger.info(f"Scheduled jobs: {[job.name for job in scheduler.get_jobs()]}")

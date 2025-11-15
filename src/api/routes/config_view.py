@@ -414,6 +414,58 @@ async def get_config_html():
                 color: #991b1b;
                 display: block;
             }
+
+            .upstream-config {
+                margin-top: 25px;
+                padding-top: 25px;
+                border-top: 1px solid #e5e7eb;
+            }
+
+            .upstream-toggle {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 15px;
+            }
+
+            .upstream-toggle input[type="checkbox"] {
+                width: 20px;
+                height: 20px;
+                cursor: pointer;
+            }
+
+            .upstream-toggle label {
+                cursor: pointer;
+                font-weight: 600;
+                margin: 0;
+            }
+
+            .upstream-fields {
+                display: grid;
+                grid-template-columns: 2fr 1fr auto;
+                gap: 15px;
+                align-items: flex-end;
+            }
+
+            .upstream-fields button {
+                background: #10b981;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 5px;
+                cursor: pointer;
+                font-weight: 600;
+                height: 42px;
+            }
+
+            .upstream-fields button:hover {
+                background: #059669;
+            }
+
+            .upstream-fields button:disabled {
+                background: #9ca3af;
+                cursor: not-allowed;
+            }
         </style>
     </head>
     <body>
@@ -444,6 +496,31 @@ async def get_config_html():
                     <button onclick="saveWebhookUrl()">Save Webhook</button>
                 </div>
                 <div id="webhook-status" class="webhook-status"></div>
+
+                <!-- Upstream Monitoring Section -->
+                <div class="upstream-config">
+                    <div class="upstream-toggle">
+                        <input type="checkbox" id="upstream-enabled" onchange="toggleUpstreamFields()">
+                        <label for="upstream-enabled">Enable Upstream Monitoring (Self-Monitoring)</label>
+                    </div>
+                    <p style="color: #666; font-size: 0.9em; margin-bottom: 15px;">
+                        This hub will send heartbeats to an external service to confirm it's healthy.
+                        Compatible with healthchecks.io, Uptime Kuma, and similar services.
+                    </p>
+                    <div class="upstream-fields">
+                        <div class="form-group">
+                            <label>Upstream Monitoring URL</label>
+                            <input type="url" id="upstream-url" placeholder="https://hc-ping.com/your-uuid" disabled>
+                            <small id="upstream-source" style="color: #666;"></small>
+                        </div>
+                        <div class="form-group">
+                            <label>Frequency (seconds)</label>
+                            <input type="number" id="upstream-frequency" min="60" value="300" disabled>
+                        </div>
+                        <button id="upstream-save-btn" onclick="saveUpstreamConfig()" disabled>Save Config</button>
+                    </div>
+                    <div id="upstream-status" class="webhook-status"></div>
+                </div>
             </div>
 
             <div class="config-table">
@@ -665,6 +742,90 @@ async def get_config_html():
                 }
             }
 
+            async function fetchUpstreamConfig() {
+                try {
+                    const response = await fetch('/api/v1/settings/upstream');
+                    const data = await response.json();
+
+                    document.getElementById('upstream-enabled').checked = data.enabled;
+                    document.getElementById('upstream-url').value = data.url || '';
+                    document.getElementById('upstream-frequency').value = data.frequency_seconds;
+
+                    // Show source info
+                    const sourceText = data.source === 'database' ?
+                        '(configured in database)' :
+                        data.source === 'environment' ?
+                        '(from environment variable)' :
+                        '(not configured)';
+                    document.getElementById('upstream-source').textContent = sourceText;
+
+                    // Enable/disable fields based on enabled state
+                    toggleUpstreamFields();
+                } catch (error) {
+                    console.error('Error fetching upstream config:', error);
+                }
+            }
+
+            function toggleUpstreamFields() {
+                const enabled = document.getElementById('upstream-enabled').checked;
+                document.getElementById('upstream-url').disabled = !enabled;
+                document.getElementById('upstream-frequency').disabled = !enabled;
+                document.getElementById('upstream-save-btn').disabled = !enabled;
+            }
+
+            async function saveUpstreamConfig() {
+                const enabled = document.getElementById('upstream-enabled').checked;
+                const url = document.getElementById('upstream-url').value;
+                const frequency = parseInt(document.getElementById('upstream-frequency').value);
+                const statusDiv = document.getElementById('upstream-status');
+
+                if (enabled && !url) {
+                    statusDiv.className = 'webhook-status error';
+                    statusDiv.textContent = 'Please enter an upstream monitoring URL';
+                    return;
+                }
+
+                if (frequency < 60) {
+                    statusDiv.className = 'webhook-status error';
+                    statusDiv.textContent = 'Frequency must be at least 60 seconds';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/api/v1/settings/upstream', {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            enabled: enabled,
+                            url: url,
+                            frequency_seconds: frequency
+                        }),
+                    });
+
+                    if (response.ok) {
+                        statusDiv.className = 'webhook-status success';
+                        statusDiv.textContent = enabled ?
+                            '✓ Upstream monitoring enabled and configured!' :
+                            '✓ Upstream monitoring disabled';
+                        document.getElementById('upstream-source').textContent = '(configured in database)';
+
+                        setTimeout(() => {
+                            statusDiv.className = 'webhook-status';
+                        }, 3000);
+                    } else {
+                        const error = await response.json();
+                        statusDiv.className = 'webhook-status error';
+                        statusDiv.textContent = `Error: ${error.detail || 'Failed to save upstream config'}`;
+                    }
+                } catch (error) {
+                    console.error('Error saving upstream config:', error);
+                    statusDiv.className = 'webhook-status error';
+                    statusDiv.textContent = 'Error saving upstream config. Please try again.';
+                }
+            }
+
             function updateTable(hosts) {
                 const tbody = document.getElementById('config-tbody');
 
@@ -840,6 +1001,7 @@ async def get_config_html():
             // Initial load
             fetchConfigurations();
             fetchWebhookConfig();
+            fetchUpstreamConfig();
 
             // Refresh every 30 seconds
             setInterval(fetchConfigurations, 30000);
