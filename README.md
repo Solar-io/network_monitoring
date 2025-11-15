@@ -9,8 +9,9 @@ A comprehensive Python-based network and system monitoring platform with heartbe
 - 🌐 **Internet Monitoring**: Track connectivity with healthchecks.io integration
 - 📢 **Discord Alerts**: Rich webhook-based notifications
 - ⏰ **Business Hours Support**: Schedule monitoring windows
-- 🐳 **Docker Deployment**: Easy deployment with Docker Compose
+- 🐳 **Single Container Deployment**: Everything runs in one Docker container
 - 📊 **Web Dashboard**: Real-time monitoring dashboard
+- ⚙️ **Easy Configuration**: View and edit host settings via web UI or API
 
 ## Quick Start
 
@@ -55,9 +56,10 @@ HEALTHCHECKS_URL=https://hc-ping.com/your-uuid
 docker-compose up -d
 ```
 
-5. **Access the dashboard**
+5. **Access the dashboards**
 
-Open [http://localhost:8080/api/v1/dashboard](http://localhost:8080/api/v1/dashboard)
+- **Status Dashboard**: [http://localhost:8080/api/v1/dashboard](http://localhost:8080/api/v1/dashboard)
+- **Configuration Manager**: [http://localhost:8080/api/v1/config](http://localhost:8080/api/v1/config)
 
 ## Usage
 
@@ -106,6 +108,51 @@ Add:
 ```cron
 */5 * * * * /path/to/client-heartbeat.sh web01 YOUR_TOKEN http://your-monitor-server:8080
 ```
+
+### Managing Host Configurations
+
+You can view and update host configurations in multiple ways:
+
+**1. Web Configuration Manager** (Easiest)
+
+Visit [http://localhost:8080/api/v1/config](http://localhost:8080/api/v1/config) to:
+- View all host configurations in a table
+- Edit heartbeat frequency, grace period, and schedule
+- See current status and settings at a glance
+
+**2. API Endpoints**
+
+View all configurations:
+```bash
+curl http://localhost:8080/api/v1/hosts/config/all
+```
+
+Update a host's configuration:
+```bash
+curl -X PATCH "http://localhost:8080/api/v1/hosts/web01/config?frequency_seconds=600&schedule_type=business_hours"
+```
+
+**3. Programmatically**
+
+```python
+import requests
+
+# Update frequency to 10 minutes and set business hours schedule
+response = requests.patch(
+    "http://localhost:8080/api/v1/hosts/web01/config",
+    params={
+        "frequency_seconds": 600,
+        "schedule_type": "business_hours"
+    }
+)
+print(response.json())
+```
+
+**Common Configuration Changes:**
+
+- **Change heartbeat frequency**: Adjust how often the host should check in
+- **Update grace period**: Set how long to wait before alerting on missed heartbeat
+- **Switch schedule**: Toggle between 24/7 monitoring and business hours only
 
 ### Configuring Log Analysis
 
@@ -202,11 +249,14 @@ Hosts can be configured via:
 - `PUT /api/v1/hosts/{host_id}` - Update host
 - `DELETE /api/v1/hosts/{host_id}` - Delete host
 - `POST /api/v1/hosts/generate-token` - Generate secure token
+- `GET /api/v1/hosts/config/all` - Get all host configurations
+- `PATCH /api/v1/hosts/{host_id}/config` - Quick update of frequency/schedule
 
-### Dashboard
+### Dashboard & Configuration
 
-- `GET /api/v1/dashboard` - HTML dashboard
+- `GET /api/v1/dashboard` - HTML status dashboard
 - `GET /api/v1/dashboard/data` - Dashboard data (JSON)
+- `GET /api/v1/config` - HTML configuration manager
 
 ### Health
 
@@ -214,25 +264,24 @@ Hosts can be configured via:
 
 ## Architecture
 
-The system consists of three main containers:
+The system runs in a **single Docker container** for easy management. All services run concurrently:
 
-1. **API Service** (`netmon-api`)
-   - FastAPI server
-   - Receives heartbeats
-   - Serves dashboard
-   - Port: 8080
+**Container: `netmon`**
+- **FastAPI API Server** (Port 8080)
+  - Receives heartbeats
+  - Serves dashboards and configuration UI
+  - Provides REST API
 
-2. **Scheduler Service** (`netmon-scheduler`)
-   - APScheduler for background jobs
-   - Checks for missing heartbeats (every 1 min)
-   - Runs log analysis (every 30 min)
-   - Database cleanup (daily at 3 AM UTC)
-   - Health checks (hourly)
+- **Background Scheduler** (APScheduler)
+  - Checks for missing heartbeats (every 1 min)
+  - Runs log analysis (every 30 min)
+  - Database cleanup (daily at 3 AM UTC)
+  - Health checks (hourly)
 
-3. **Internet Monitor** (`netmon-internet`)
-   - Connectivity checks (every 5 min)
-   - Healthchecks.io pinging
-   - Alerts on outages
+- **Internet Monitor**
+  - Connectivity checks (every 5 min)
+  - Healthchecks.io pinging
+  - Alerts on outages
 
 ### Data Flow
 
@@ -271,33 +320,33 @@ The system monitors itself:
      -H "Authorization: Bearer YOUR_TOKEN"
    ```
 
-3. Check API logs:
+3. Check container logs:
    ```bash
-   docker-compose logs api
+   docker-compose logs netmon
    ```
 
 ### Log Analysis Not Working
 
-1. Verify SSH connectivity from scheduler container:
+1. Verify SSH connectivity from container:
    ```bash
-   docker-compose exec scheduler ssh admin@192.168.1.1
+   docker-compose exec netmon ssh admin@192.168.1.1
    ```
 
 2. Check SSH keys are mounted:
    ```bash
-   docker-compose exec scheduler ls -la /root/.ssh
+   docker-compose exec netmon ls -la /root/.ssh
    ```
 
-3. Review scheduler logs:
+3. Review container logs:
    ```bash
-   docker-compose logs scheduler
+   docker-compose logs netmon
    ```
 
 ### Discord Alerts Not Sending
 
 1. Verify webhook URL in `.env`:
    ```bash
-   docker-compose exec api env | grep DISCORD
+   docker-compose exec netmon env | grep DISCORD
    ```
 
 2. Test webhook manually:
@@ -317,22 +366,18 @@ The system monitors itself:
 ### View Logs
 
 ```bash
-# All services
-docker-compose logs -f
+# View container logs
+docker-compose logs -f netmon
 
-# Specific service
-docker-compose logs -f api
-docker-compose logs -f scheduler
+# With tail
+docker-compose logs -f --tail=100 netmon
 ```
 
 ### Restart Services
 
 ```bash
-# All services
-docker-compose restart
-
-# Specific service
-docker-compose restart scheduler
+# Restart the container (restarts all services)
+docker-compose restart netmon
 ```
 
 ### Update System
