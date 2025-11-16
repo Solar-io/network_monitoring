@@ -26,6 +26,5 @@ Provider Options
 Budgets & Caps
 - Respect caps in `config/project.yml` and env overrides. UI should warn at 80% and pause for confirmation on exceed.
 
-Approvals
-- Risky operations require an approval event and explicit confirmation; snapshot before proceeding.
+
 
