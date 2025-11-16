@@ -1,6 +1,6 @@
 # Tasks
 
-Last updated: 2025-01-06
+Last updated: 2025-11-16
 
 ## Blocked
 
@@ -74,7 +74,7 @@ _No blocked tasks currently_
 
 ## M8 — Testing & Validation 🔄 (In Progress)
 
-- [ ] Write unit tests for core utilities
+- [ ] Write unit tests for core utilities (AgentMonitorService tests added; expand coverage)
 - [ ] Write integration tests for API endpoints
 - [ ] Test heartbeat flow end-to-end
 - [ ] Test log analysis with real firewall
@@ -86,10 +86,11 @@ _No blocked tasks currently_
 ## M8.5 — Project-Specific Polling Rollout 🔄 (In Progress)
 
 - [ ] Review per-project monitoring docs (starting with Evie) and capture poll targets
+- [ ] Document agent monitoring tab usage + deployment steps
 - [ ] Model project services/endpoints in database schema (hosts/config tables)
 - [ ] Implement polling job to call project health endpoints on schedule
 - [ ] Extend alert service to classify per-project component failures
-- [ ] Surface project polling status in dashboard & config UI
+- [ ] Surface project polling status in dashboard & config UI (agent tab MVP shipped)
 - [ ] Document onboarding runbook for adding new projects/services
 - [ ] Backfill TASKS/PROJECT_STATUS/STATUS docs after each project onboarding
 

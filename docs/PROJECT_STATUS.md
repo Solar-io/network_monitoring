@@ -1,11 +1,11 @@
 # Project Status
 
-Last updated: 2025-01-15
+Last updated: 2025-11-16
 
 ## Snapshot
 
 - **Vision**: Comprehensive network and system monitoring platform with heartbeat tracking, LLM-powered log analysis, and internet connectivity monitoring
-- **App**: Fully functional MVP with FastAPI backend, single-container Docker deployment, web dashboard, and configuration management UI
+- **App**: Fully functional MVP with FastAPI backend, single-container Docker deployment, web dashboard (now with agent-monitoring tab), and configuration management UI
 - **Docs**: Complete architecture, requirements, and user documentation (README, ARCHITECTURE.md, REQUIREMENTS.md)
 - **Recoverability**: Git initialized, snapshot tags per session; rollback via restore branches
 
@@ -14,6 +14,7 @@ Last updated: 2025-01-15
 - End-to-end testing and verification
 - User acceptance testing with real hosts
 - Project-specific polling rollout (Evie monitoring integration)
+- Agent job monitoring tab rollout across environments
 
 ## Major Tasks Status
 
@@ -67,7 +68,7 @@ Last updated: 2025-01-15
 2. Web UI for host management (React/Vue)
 3. Alert acknowledgment workflow
 4. Historical metrics and dashboards
-5. Unit and integration test suite
+5. Unit and integration test suite (kicked off with Agent Monitor tests)
 6. CI/CD pipeline setup
 
 ### Phase 3 Advanced Features
@@ -149,8 +150,8 @@ Last updated: 2025-01-15
 - **API Endpoints**: 17 RESTful endpoints
 - **Database Tables**: 5 (hosts, heartbeats, alerts, log_analyses, config)
 - **Background Jobs**: 5 scheduled tasks
-- **Documentation**: 3 comprehensive docs + README + verification logs
-- **Web UIs**: 2 (Dashboard + Configuration Manager with settings)
+- **Documentation**: 3 comprehensive docs + README + verification logs (updated 2025-11-16)
+- **Web UIs**: 2 (Dashboard with agent tab + Configuration Manager with settings)
 
 ## Next Steps
 
@@ -159,9 +160,10 @@ Last updated: 2025-01-15
 3. Test SSH-based log analysis with actual firewall
 4. Set up healthchecks.io integration
 5. Monitor system for 48 hours
-6. Write automated tests based on observed behavior
-7. Document any issues in BUGLOG.md
-8. Create snapshot after validation
+6. Roll out agent monitoring tab to all environments
+7. Write automated tests (AgentMonitorService tests added; expand coverage)
+8. Document any issues in BUGLOG.md
+9. Create snapshot after validation
 
 ## Production Readiness Checklist
 

@@ -1,41 +1,28 @@
 # Last Chat Summary
 
-**Date**: 2025-01-15
+**Date**: 2025-11-16
 **Agent**: Claude Code
-**Session**: Schedule-Aware Monitoring and Upstream Monitoring
+**Session**: Agent Monitoring Tab & Status Tracker
 
 ## Work Completed
 
-### Milestone v1.2.0: Schedule-Aware Monitoring & Upstream Monitoring ✅
+### Agent Job Monitoring Tab ✅
 
-Successfully completed user's three primary requests:
+1. **Agent Monitor Backend**
+   - Added `AgentMonitorService` (`src/services/agent_monitor.py`) to discover all `/docs/TASKS.md` files, read/write contents, and infer Claude Code status from `/home/sgallant/.claude/projects` session timestamps.
+   - Exposed FastAPI endpoints (`src/api/routes/agents.py`) for listing projects, retrieving task contents, and saving edits.
+   - Registered the router in `src/api/main.py` and exports via `src/api/routes/__init__.py`.
 
-1. **Schedule-Aware Monitoring Logic**
-   - Fixed `Host.is_overdue()` method in `src/database/models.py`
-   - Added window-aware checking for business hours schedules
-   - Prevents false alerts at monitoring window boundaries
-   - Example: Won't alert at 8:01am if last heartbeat was yesterday at 9:55am
-   - Now correctly waits for `window_start + frequency + grace` before alerting
-   - Added `get_window_start_time()` function in `src/utils/schedule_utils.py`
+2. **Dashboard UI Enhancements**
+   - Rebuilt `/api/v1/dashboard` HTML to include a left sidebar with tabs.
+   - Implemented “Agent Jobs” panel to browse projects, view latest status, edit TASKS.md inline, and refresh status.
+   - Preserved existing host/alert views under the “Network Dashboard” tab.
 
-2. **Runtime Webhook Configuration**
-   - Created `src/api/routes/settings.py` with webhook API endpoints
-   - `GET /api/v1/settings/webhook` - View current webhook URL
-   - `PUT /api/v1/settings/webhook` - Update webhook URL
-   - Updated `src/utils/discord.py` to check database before environment
-   - Priority: Database config > Environment variable
-   - Added webhook configuration section to config UI
-   - No container restart required for webhook changes
+3. **Unit Tests**
+   - Added `tests/unit/test_agent_monitor.py` with basic coverage for discovery, status detection, and read/write operations (pytest).
 
-3. **Upstream Monitoring (Self-Monitoring)**
-   - Created `src/services/upstream_monitor.py` service
-   - `GET /api/v1/settings/upstream` - View upstream config
-   - `PUT /api/v1/settings/upstream` - Update upstream config
-   - Added scheduled job `send_upstream_heartbeat()` (runs every 5 minutes)
-   - Integration with healthchecks.io, Uptime Kuma, and similar services
-   - Supports status-specific paths (/fail, /start, /log)
-   - Added upstream monitoring UI section in config page
-   - Configurable frequency and enable/disable toggle
+4. **Documentation Updates**
+   - Updated `docs/PROJECT_STATUS.md`, `docs/TASKS.md`, and `docs/LAST_CHAT.md` to describe the new feature, testing progress, and rollout tasks.
 
 ## Current System State
 
@@ -47,32 +34,25 @@ Successfully completed user's three primary requests:
   - Internet connectivity monitor
   - Upstream monitoring service
 - **Web UIs**:
-  - Dashboard: http://localhost:8080/api/v1/dashboard
+  - Dashboard: http://localhost:8080/api/v1/dashboard (hosts + agent tab)
   - Configuration Manager: http://localhost:8080/api/v1/config (with settings)
-- **API Endpoints**: 17 total (added 4 new settings endpoints)
+- **API Endpoints**: 19 total (added agents list/update endpoints)
 - **Background Jobs**: 5 (added upstream heartbeat job)
-- **Codebase**: ~6,500 lines across 54 files
+- **Codebase**: ~6,700 lines across 56 files (after new service/tests)
 
 ## Git State
 
-- All changes committed with conventional commit messages:
-  - `feat: add schedule-aware monitoring logic`
-  - `feat: add runtime webhook URL configuration`
-  - `feat: add upstream monitoring (self-monitoring) capability`
-  - `docs: update PROJECT_STATUS for v1.2.0 release`
-- Ready for deployment
+- Git state: dashboard + agent monitoring work staged locally (not yet committed)
+- Pending tasks: docs/log updates and full verification run before commit
 
 ## Test Results
 
-All features tested and verified:
-- ✅ Schedule-aware monitoring logic prevents false alerts
-- ✅ Webhook GET/PUT endpoints working
-- ✅ Upstream monitoring GET/PUT endpoints working
-- ✅ Database configuration storage working
-- ✅ Config UI rendering webhook and upstream sections
-- ✅ Scheduler job registered: "Send upstream heartbeat"
-- ✅ Container healthy and running
-- ✅ All logs documented in `logs/verification.log`
+Targeted checks this session:
+- ✅ Manual UI verification of dashboard host tab locally
+- ✅ `curl` smoke tests for `/api/v1/agents` list + detail + update
+- ⚠️ Agent tab UI not yet validated on staging/prod host
+- ⚠️ `logs/verification.log` still needs entries for these tests
+- ⚠️ Broader regression suite not run (follow-up task)
 
 ## Next Steps for Future Work
 
@@ -93,49 +73,37 @@ All features tested and verified:
 
 ## Key Files Modified in This Session
 
-1. `src/database/models.py` - Fixed `is_overdue()` with schedule awareness
-2. `src/utils/schedule_utils.py` - Added `get_window_start_time()`
-3. `src/api/routes/settings.py` - NEW: Settings API endpoints
-4. `src/utils/discord.py` - Updated `get_discord_client()` to check database
-5. `src/api/routes/config_view.py` - Added webhook and upstream UI sections
-6. `src/services/upstream_monitor.py` - NEW: Upstream monitoring service
-7. `src/services/scheduler_service.py` - Added upstream heartbeat job
-8. `src/api/main.py` - Registered settings router
-9. `docs/PROJECT_STATUS.md` - Updated for v1.2.0 release
-10. `logs/verification.log` - Comprehensive test documentation
+1. `src/services/agent_monitor.py` - NEW service to aggregate TASKS files and status
+2. `src/api/routes/agents.py` - NEW API routes for listing/editing tasks
+3. `src/api/routes/dashboard.py` - Rebuilt HTML/JS with sidebar + agent tab
+4. `src/api/main.py` / `src/api/routes/__init__.py` / `src/services/__init__.py` - Router & export wiring
+5. `tests/unit/test_agent_monitor.py` - Initial pytest coverage for new service
+6. `docs/PROJECT_STATUS.md` / `docs/TASKS.md` / `docs/LAST_CHAT.md` - Documentation updates for new feature
+7. *(Pending)* `logs/verification.log` - needs updates capturing manual tests
 
 ## User Satisfaction
 
-✅ All three user requirements fully addressed:
-1. "Validate the logic... should only alert if it fails to meet that criteria within that time window" - COMPLETE
-2. "Add the option for me to update the webhook url in the web UI" - COMPLETE
-3. "We need the ability to act as a client for an upstream monitoring service" - COMPLETE
+✅ Current request addressed:
+1. "Add a tab on the left side for agent job monitoring with TASKS.md editing and status" - COMPLETE
 
 ## Technical Notes for Next Agent
 
-- **Schedule-Aware Monitoring**: The `is_overdue()` method now understands monitoring windows. For business hours schedules, it checks if last heartbeat was before the current window started and adjusts the threshold accordingly.
+- **Agent Monitoring Pipeline**: `/api/v1/agents` endpoints rely on disk access to `/home/sgallant/sync/software-development` and `/home/sgallant/.claude/projects`; ensure permissions exist in deployment environment.
 
-- **Database Configuration Priority**: Webhook URL and upstream monitoring config are now stored in the `config` table. The system checks database first, then falls back to environment variables.
+- **UI Fetching**: Dashboard loads `/api/v1/agents` every 60s; verify CORS/firewalls allow calls when served behind reverse proxy.
 
-- **Upstream Monitoring**: The system sends heartbeats to an external monitoring service every 5 minutes (configurable). This allows services like healthchecks.io to monitor the monitoring hub itself.
+- **Testing Debt**: Only basic pytest coverage exists—run `pytest tests/unit/test_agent_monitor.py` and expand suites (integration/UI) before release.
 
-- **Scheduler Jobs**: All 5 jobs confirmed running:
-  1. Check heartbeats (every 1 minute)
-  2. Analyze logs (every 30 minutes)
-  3. Database cleanup (daily at 3 AM UTC)
-  4. System health check (every hour)
-  5. Send upstream heartbeat (every 5 minutes)
-
-- **Container Health**: The netmon container is healthy and all services are operational.
+- **Logs**: Update `logs/verification.log` with new manual checks; track open issues (agent tab on staging) in BUGLOG if needed.
 
 ## Production Readiness
 
-Estimated: **92%** (up from 88%)
+Estimated: **90%** (UI feature deployed locally; requires staging validation + testing)
 
 Improvements:
-- ✅ Schedule-aware monitoring prevents false alerts
-- ✅ Runtime configuration without restarts
-- ✅ Self-monitoring capability added
-- ⬜ Still needs automated test suite
-- ⬜ Still needs security audit
-- ⬜ Still needs SSL/TLS configuration
+- ✅ Agent monitoring tab available in dashboard
+- ✅ Task editing API with status inference
+- ✅ Initial unit tests added
+- ⬜ Need staging verification + documentation of runbook
+- ⬜ Need broader automated/regression testing
+- ⬜ Need security review for new endpoints
