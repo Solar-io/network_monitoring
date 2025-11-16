@@ -13,6 +13,7 @@ Last updated: 2025-01-15
 
 - End-to-end testing and verification
 - User acceptance testing with real hosts
+- Project-specific polling rollout (Evie monitoring integration)
 
 ## Major Tasks Status
 

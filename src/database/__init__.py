@@ -1,6 +1,14 @@
 """Database module."""
 from src.database.db import Base, SessionLocal, engine, get_db, get_db_context, init_db
-from src.database.models import Alert, Config, Heartbeat, Host, LogAnalysis
+from src.database.models import (
+    Alert,
+    Config,
+    Heartbeat,
+    Host,
+    LogAnalysis,
+    ProjectService,
+    ServiceHealthCheck,
+)
 
 __all__ = [
     "Base",
@@ -14,4 +22,6 @@ __all__ = [
     "Alert",
     "LogAnalysis",
     "Config",
+    "ProjectService",
+    "ServiceHealthCheck",
 ]

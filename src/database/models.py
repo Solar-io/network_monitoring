@@ -126,9 +126,10 @@ class Alert(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     host_id = Column(Integer, ForeignKey("hosts.id"), nullable=True, index=True)
+    service_id = Column(Integer, ForeignKey("project_services.id"), nullable=True, index=True)
     alert_type = Column(
         String(50), nullable=False, index=True
-    )  # 'heartbeat', 'log_analysis', 'internet', 'system'
+    )  # 'heartbeat', 'log_analysis', 'internet', 'system', 'project_service'
     severity = Column(
         String(20), nullable=False, default="warning"
     )  # 'info', 'warning', 'critical'
@@ -140,6 +141,7 @@ class Alert(Base):
 
     # Relationships
     host = relationship("Host", back_populates="alerts")
+    service = relationship("ProjectService", back_populates="alerts")
 
     def __repr__(self):
         return f"<Alert(id={self.id}, type={self.alert_type}, severity={self.severity})>"
@@ -179,3 +181,84 @@ class Config(Base):
 
     def __repr__(self):
         return f"<Config(key={self.key})>"
+
+
+class ProjectService(Base):
+    """Project-specific service endpoints to poll."""
+
+    __tablename__ = "project_services"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_name = Column(String(100), nullable=False, index=True)
+    service_name = Column(String(100), nullable=False)
+    endpoint_id = Column(String(100), nullable=True)
+    endpoint_url = Column(String(500), nullable=False)
+    endpoint_type = Column(String(50), nullable=False, default="http")
+
+    # Polling configuration
+    poll_frequency_seconds = Column(Integer, nullable=False, default=300)
+    timeout_seconds = Column(Integer, nullable=False, default=10)
+    expected_status_code = Column(Integer, nullable=False, default=200)
+    expected_response_pattern = Column(String(500), nullable=True)
+
+    # Authentication
+    auth_type = Column(String(50), nullable=True)
+    auth_config = Column(Text, nullable=True)
+
+    # Status tracking
+    last_checked = Column(DateTime, nullable=True)
+    status = Column(String(20), nullable=False, default="unknown")
+    consecutive_failures = Column(Integer, nullable=False, default=0)
+    last_error = Column(Text, nullable=True)
+
+    # Alerting configuration
+    alert_threshold = Column(Integer, nullable=False, default=3)
+    enabled = Column(Boolean, nullable=False, default=True)
+
+    # Timestamps
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(
+        DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    # Relationships
+    alerts = relationship("Alert", back_populates="service", cascade="all, delete-orphan")
+    health_checks = relationship(
+        "ServiceHealthCheck", back_populates="service", cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        {
+            "sqlite_autoincrement": True,
+        }
+    )
+
+    def __repr__(self):
+        return (
+            f"<ProjectService(id={self.id}, project={self.project_name}, "
+            f"service={self.service_name}, status={self.status})>"
+        )
+
+
+class ServiceHealthCheck(Base):
+    """History of project service health checks."""
+
+    __tablename__ = "service_health_checks"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    service_id = Column(Integer, ForeignKey("project_services.id"), nullable=False, index=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    status = Column(String(20), nullable=False)
+    response_time_ms = Column(Integer, nullable=True)
+    status_code = Column(Integer, nullable=True)
+    error_message = Column(Text, nullable=True)
+    response_body = Column(Text, nullable=True)
+
+    service = relationship("ProjectService", back_populates="health_checks")
+
+    def __repr__(self):
+        return (
+            f"<ServiceHealthCheck(id={self.id}, service={self.service_id}, "
+            f"status={self.status})>"
+        )

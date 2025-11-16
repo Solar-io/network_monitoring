@@ -83,6 +83,16 @@ _No blocked tasks currently_
 - [ ] Load test with 20+ hosts
 - [ ] Security audit
 
+## M8.5 — Project-Specific Polling Rollout 🔄 (In Progress)
+
+- [ ] Review per-project monitoring docs (starting with Evie) and capture poll targets
+- [ ] Model project services/endpoints in database schema (hosts/config tables)
+- [ ] Implement polling job to call project health endpoints on schedule
+- [ ] Extend alert service to classify per-project component failures
+- [ ] Surface project polling status in dashboard & config UI
+- [ ] Document onboarding runbook for adding new projects/services
+- [ ] Backfill TASKS/PROJECT_STATUS/STATUS docs after each project onboarding
+
 ## M9 — Deployment & Operations (Pending)
 
 - [ ] Deploy to staging environment

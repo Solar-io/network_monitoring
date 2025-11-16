@@ -91,6 +91,7 @@ class AlertCreate(BaseModel):
     """Schema for creating an alert."""
 
     host_id: Optional[int] = None
+    service_id: Optional[int] = None
     alert_type: str = Field(..., min_length=1, max_length=50)
     severity: str = Field(default="warning")
     message: str = Field(..., min_length=1)
@@ -102,6 +103,7 @@ class AlertResponse(BaseModel):
 
     id: int
     host_id: Optional[int] = None
+    service_id: Optional[int] = None
     alert_type: str
     severity: str
     message: str
@@ -153,6 +155,79 @@ class HealthResponse(BaseModel):
     services: Dict[str, str] = Field(default_factory=dict)
 
 
+class ProjectServiceBase(BaseModel):
+    """Base schema for project services."""
+
+    project_name: str = Field(..., min_length=1, max_length=100)
+    service_name: str = Field(..., min_length=1, max_length=100)
+    endpoint_id: Optional[str] = Field(None, min_length=1, max_length=100)
+    endpoint_url: str = Field(..., min_length=1, max_length=500)
+    endpoint_type: str = Field(default="http")
+    poll_frequency_seconds: int = Field(default=300, gt=0)
+    timeout_seconds: int = Field(default=10, gt=0)
+    expected_status_code: int = Field(default=200)
+    expected_response_pattern: Optional[str] = Field(None, max_length=500)
+    auth_type: Optional[str] = Field(None, pattern="^(bearer|basic|api_key)$")
+    auth_config: Optional[str] = None
+    alert_threshold: int = Field(default=3, gt=0)
+    enabled: bool = True
+
+
+class ProjectServiceCreate(ProjectServiceBase):
+    """Schema for creating project services."""
+
+    pass
+
+
+class ProjectServiceUpdate(BaseModel):
+    """Schema for updating project services."""
+
+    project_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    service_name: Optional[str] = Field(None, min_length=1, max_length=100)
+    endpoint_id: Optional[str] = Field(None, min_length=1, max_length=100)
+    endpoint_url: Optional[str] = Field(None, min_length=1, max_length=500)
+    endpoint_type: Optional[str] = Field(None)
+    poll_frequency_seconds: Optional[int] = Field(None, gt=0)
+    timeout_seconds: Optional[int] = Field(None, gt=0)
+    expected_status_code: Optional[int] = Field(None, ge=100, le=599)
+    expected_response_pattern: Optional[str] = Field(None, max_length=500)
+    auth_type: Optional[str] = Field(None)
+    auth_config: Optional[str] = None
+    alert_threshold: Optional[int] = Field(None, gt=0)
+    enabled: Optional[bool] = None
+
+
+class ProjectServiceResponse(ProjectServiceBase):
+    """Schema for project service responses."""
+
+    id: int
+    last_checked: Optional[datetime] = None
+    status: str
+    consecutive_failures: int
+    last_error: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ServiceHealthCheckResponse(BaseModel):
+    """Schema for service health check history."""
+
+    id: int
+    service_id: int
+    timestamp: datetime
+    status: str
+    response_time_ms: Optional[int] = None
+    status_code: Optional[int] = None
+    error_message: Optional[str] = None
+    response_body: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Dashboard Schema
 class DashboardResponse(BaseModel):
     """Schema for dashboard data."""
@@ -164,6 +239,7 @@ class DashboardResponse(BaseModel):
     hosts_down: int
     hosts_unknown: int
     last_updated: datetime
+    project_services: List[ProjectServiceResponse] = []
 
 
 # Authentication
