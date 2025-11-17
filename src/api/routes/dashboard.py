@@ -77,8 +77,7 @@ async def get_dashboard_html():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Network Monitoring Dashboard</title>
-        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
-        <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs/loader.min.js"></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
@@ -358,19 +357,12 @@ async def get_dashboard_html():
                 flex-direction: column;
                 min-height: 0;
             }
-            .CodeMirror {
-                height: 100% !important;
+            #monaco-editor-container {
+                flex: 1;
                 border-radius: 8px;
                 border: 1px solid #d1d5db;
-                font-size: 14px;
-            }
-            .editor-toolbar {
-                border-radius: 8px 8px 0 0;
-                border: 1px solid #d1d5db;
-                background: #f9fafb;
-            }
-            .CodeMirror-scroll {
-                min-height: 300px;
+                overflow: hidden;
+                min-height: 400px;
             }
             .agent-actions {
                 margin-top: 12px;
@@ -599,7 +591,7 @@ async def get_dashboard_html():
             const agentDetailsEl = document.getElementById('agent-details');
             let agentsCache = [];
             let selectedAgent = null;
-            let markdownEditor = null;
+            let monacoEditor = null;
 
             function statusLabel(status) {
                 return status ? status.replace(/_/g, ' ') : 'unknown';
@@ -679,7 +671,7 @@ async def get_dashboard_html():
                             </div>
                         </div>
                         <div class="editor-wrapper">
-                            <textarea id="agent-editor"></textarea>
+                            <div id="monaco-editor-container"></div>
                         </div>
                         <div class="agent-actions">
                             <button class="save-button" id="agent-save-btn">Save Changes</button>
@@ -689,32 +681,32 @@ async def get_dashboard_html():
                 `;
 
                 // Destroy previous editor instance if exists
-                if (markdownEditor) {
-                    markdownEditor.toTextArea();
-                    markdownEditor = null;
+                if (monacoEditor) {
+                    monacoEditor.dispose();
+                    monacoEditor = null;
                 }
 
-                // Initialize EasyMDE markdown editor
-                markdownEditor = new EasyMDE({
-                    element: document.getElementById('agent-editor'),
-                    spellChecker: false,
-                    autofocus: false,
-                    placeholder: "Enter task details here...",
-                    status: ['lines', 'words', 'cursor'],
-                    toolbar: [
-                        "bold", "italic", "heading", "|",
-                        "quote", "unordered-list", "ordered-list", "|",
-                        "link", "image", "table", "|",
-                        "preview", "side-by-side", "fullscreen", "|",
-                        "guide"
-                    ],
-                    renderingConfig: {
-                        singleLineBreaks: false,
-                        codeSyntaxHighlighting: true,
-                    }
+                // Initialize Monaco Editor
+                require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.45.0/min/vs' } });
+                require(['vs/editor/editor.main'], function() {
+                    monacoEditor = monaco.editor.create(document.getElementById('monaco-editor-container'), {
+                        value: agent.contents,
+                        language: 'markdown',
+                        theme: 'vs',
+                        automaticLayout: true,
+                        minimap: { enabled: true },
+                        wordWrap: 'on',
+                        lineNumbers: 'on',
+                        fontSize: 14,
+                        scrollBeyondLastLine: false,
+                        renderWhitespace: 'selection',
+                        quickSuggestions: false,
+                        folding: true,
+                        links: true,
+                        padding: { top: 10, bottom: 10 }
+                    });
                 });
 
-                markdownEditor.value(agent.contents);
                 document.getElementById('agent-save-btn').addEventListener('click', () => saveAgentTasks(agent.name));
             }
 
@@ -724,7 +716,7 @@ async def get_dashboard_html():
                 button.disabled = true;
                 statusEl.textContent = 'Saving...';
                 try {
-                    const contents = markdownEditor ? markdownEditor.value() : '';
+                    const contents = monacoEditor ? monacoEditor.getValue() : '';
                     const response = await fetch(`/api/v1/agents/${encodeURIComponent(agentName)}`,
                         {
                             method: 'PUT',
