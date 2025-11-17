@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2025-11-16
+Last updated: 2025-11-17
 
 ## Snapshot
 
@@ -43,6 +43,7 @@ Last updated: 2025-11-16
    - Host management REST API
    - Web dashboard (HTML/JS) with tabbed interface
    - Agent monitoring tab for viewing/editing TASKS.md files
+   - Git status monitoring with visual badges (🌿 branch, ⚠️ no remote, 📦 no git)
    - Configuration management UI
    - Quick config update endpoints (PATCH)
    - Health check endpoints
