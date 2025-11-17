@@ -95,9 +95,11 @@
 
 ## Git State
 
-- **Latest Commit**: 02631bc - "fix(ui): make Monaco editor fill full vertical height"
-- **Previous Commit**: 23257ed - "feat(ui): replace EasyMDE with Monaco Editor for VS Code experience"
-- **Earlier Commit**: ab45ea8 - "feat(ui): enhance agent monitoring with dynamic layouts and markdown editor"
+- **Latest Commit**: 29da9bb - "docs: update LAST_CHAT.md with full-height editor fix details"
+- **Previous Commit**: 02631bc - "fix(ui): make Monaco editor fill full vertical height"
+- **Earlier Commits**:
+  - 23257ed - "feat(ui): replace EasyMDE with Monaco Editor for VS Code experience"
+  - ab45ea8 - "feat(ui): enhance agent monitoring with dynamic layouts and markdown editor"
 - **Branch**: master
 - **Status**: Clean working tree
 
