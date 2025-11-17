@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,6 +24,12 @@ class AgentProject:
     status: str
     status_updated_at: Optional[float]
     file_mtime: float
+    # Git status fields
+    git_branch: Optional[str] = None
+    git_has_uncommitted: bool = False
+    git_commits_ahead: int = 0
+    git_commits_behind: int = 0
+    git_remote_url: Optional[str] = None
 
     def to_dict(self) -> dict:
         return {
@@ -32,6 +39,11 @@ class AgentProject:
             "status": self.status,
             "status_updated_at": self.status_updated_at,
             "file_mtime": self.file_mtime,
+            "git_branch": self.git_branch,
+            "git_has_uncommitted": self.git_has_uncommitted,
+            "git_commits_ahead": self.git_commits_ahead,
+            "git_commits_behind": self.git_commits_behind,
+            "git_remote_url": self.git_remote_url,
         }
 
 
@@ -62,6 +74,7 @@ class AgentMonitorService:
             if not tasks_file:
                 continue
             status, status_updated_at = self._determine_agent_status(project_dir)
+            git_status = self._get_git_status(project_dir)
             projects.append(
                 AgentProject(
                     name=project_dir.name,
@@ -70,6 +83,11 @@ class AgentMonitorService:
                     status=status,
                     status_updated_at=status_updated_at,
                     file_mtime=tasks_file.stat().st_mtime,
+                    git_branch=git_status.get("branch"),
+                    git_has_uncommitted=git_status.get("has_uncommitted", False),
+                    git_commits_ahead=git_status.get("commits_ahead", 0),
+                    git_commits_behind=git_status.get("commits_behind", 0),
+                    git_remote_url=git_status.get("remote_url"),
                 )
             )
         return projects
@@ -114,6 +132,88 @@ class AgentMonitorService:
         tasks_path.parent.mkdir(parents=True, exist_ok=True)
         with open(tasks_path, "w", encoding="utf-8") as f:
             f.write(contents)
+
+    def _get_git_status(self, project_dir: Path) -> dict:
+        """Get git status information for a project."""
+        result = {
+            "branch": None,
+            "has_uncommitted": False,
+            "commits_ahead": 0,
+            "commits_behind": 0,
+            "remote_url": None,
+        }
+
+        # Check if directory is a git repository
+        git_dir = project_dir / ".git"
+        if not git_dir.exists():
+            return result
+
+        try:
+            # Get current branch
+            branch_result = subprocess.run(
+                ["git", "-C", str(project_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if branch_result.returncode == 0:
+                result["branch"] = branch_result.stdout.strip()
+
+            # Check for uncommitted changes (staged + unstaged + untracked)
+            status_result = subprocess.run(
+                ["git", "-C", str(project_dir), "status", "--porcelain"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if status_result.returncode == 0:
+                result["has_uncommitted"] = bool(status_result.stdout.strip())
+
+            # Get remote URL
+            remote_result = subprocess.run(
+                ["git", "-C", str(project_dir), "remote", "get-url", "origin"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if remote_result.returncode == 0:
+                result["remote_url"] = remote_result.stdout.strip()
+
+            # Get commits ahead/behind remote
+            # First, fetch to get latest remote info (quietly, no output)
+            subprocess.run(
+                ["git", "-C", str(project_dir), "fetch", "--quiet"],
+                capture_output=True,
+                timeout=10,
+            )
+
+            # Get ahead/behind count
+            if result["branch"] and result["remote_url"]:
+                rev_list_result = subprocess.run(
+                    [
+                        "git",
+                        "-C",
+                        str(project_dir),
+                        "rev-list",
+                        "--left-right",
+                        "--count",
+                        f"origin/{result['branch']}...HEAD",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                if rev_list_result.returncode == 0:
+                    counts = rev_list_result.stdout.strip().split()
+                    if len(counts) == 2:
+                        result["commits_behind"] = int(counts[0])
+                        result["commits_ahead"] = int(counts[1])
+
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, ValueError):
+            # If any git command fails, return partial results
+            pass
+
+        return result
 
 
 __all__ = ["AgentMonitorService", "AgentProject"]

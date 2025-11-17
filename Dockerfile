@@ -7,7 +7,11 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
+
+# Configure git to trust mounted directories
+RUN git config --global --add safe.directory '*'
 
 # Copy requirements first for better caching
 COPY requirements.txt .
