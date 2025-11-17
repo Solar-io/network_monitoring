@@ -1,8 +1,8 @@
 # Last Chat Summary
 
-**Date**: 2025-11-16 (late evening session - Monaco Editor upgrade)
+**Date**: 2025-11-16 (extended session - Monaco Editor upgrade + full-height fix)
 **Agent**: Claude Code
-**Session**: Monaco Editor Integration
+**Session**: Monaco Editor Integration & UI Refinement
 
 ## Work Completed
 
@@ -50,6 +50,32 @@
    - Git commit with detailed feature description
    - Updated LAST_CHAT.md for handoff
 
+### Full-Height Editor Fix ✅
+
+1. **User Feedback**
+   - User reported: "the editor needs to take up the full length of the page"
+   - Editor was using `min-height: 400px` which limited vertical expansion
+
+2. **CSS Refinement**
+   - Changed `#monaco-editor-container` from `min-height: 400px` to `height: 100%`
+   - Removed height constraint to allow full vertical expansion
+   - Editor now properly fills all available space in flex container
+
+3. **Flex Container Hierarchy**
+   - `.agent-details` → `height: 100%`, flex column parent
+   - `.editor-wrapper` → `flex: 1`, flex column wrapper
+   - `#monaco-editor-container` → `height: 100%`, Monaco instance
+
+4. **Verification**
+   - Rebuilt Docker container with updated CSS
+   - Tested via Playwright browser automation
+   - Screenshot captured showing editor filling vertical space
+   - Monaco rendering 15+ lines with full syntax highlighting
+
+5. **Git Commit**
+   - Commit: 02631bc - "fix(ui): make Monaco editor fill full vertical height"
+   - Previous: 23257ed - "feat(ui): replace EasyMDE with Monaco Editor"
+
 ## Current System State
 
 - **Version**: v1.2.0+
@@ -69,8 +95,9 @@
 
 ## Git State
 
-- **Commit**: 23257ed - "feat(ui): replace EasyMDE with Monaco Editor for VS Code experience"
-- **Previous Commit**: ab45ea8 - "feat(ui): enhance agent monitoring with dynamic layouts and markdown editor"
+- **Latest Commit**: 02631bc - "fix(ui): make Monaco editor fill full vertical height"
+- **Previous Commit**: 23257ed - "feat(ui): replace EasyMDE with Monaco Editor for VS Code experience"
+- **Earlier Commit**: ab45ea8 - "feat(ui): enhance agent monitoring with dynamic layouts and markdown editor"
 - **Branch**: master
 - **Status**: Clean working tree
 
@@ -118,7 +145,8 @@
 
 ## User Satisfaction
 
-✅ **Complete**: "Let's implement this editor so we can get better formating https://github.com/microsoft/monaco-editor"
+✅ **Request 1 Complete**: "Let's implement this editor so we can get better formating https://github.com/microsoft/monaco-editor"
+✅ **Request 2 Complete**: "the editor needs to take up the full length of the page"
 
 **Delivered:**
 - ✅ Monaco Editor (VS Code's editor) fully integrated
@@ -129,6 +157,8 @@
 - ✅ Industry-standard editor interface
 - ✅ All previous functionality maintained
 - ✅ Save operation working perfectly
+- ✅ **Full-height editor filling all available vertical space**
+- ✅ **Dynamic layout responding to viewport changes**
 
 ## Technical Notes for Next Agent
 
@@ -138,12 +168,14 @@
 - **Language**: markdown
 - **Theme**: vs (light)
 - **Container**: `<div id="monaco-editor-container">`
+- **Container CSS**: `height: 100%; flex: 1;` (fills vertical space completely)
 - **API**:
   - Create: `monaco.editor.create(element, options)`
   - Get value: `monacoEditor.getValue()`
   - Cleanup: `monacoEditor.dispose()`
 - **Automatic Layout**: Set to true for responsive resizing
 - **Minimap**: Enabled by default
+- **Layout Strategy**: Flexbox with `.editor-wrapper` (flex: 1) containing Monaco (height: 100%)
 
 ## Monaco Editor Advantages
 
