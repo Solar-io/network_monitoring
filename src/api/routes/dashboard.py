@@ -359,10 +359,10 @@ async def get_dashboard_html():
             }
             #monaco-editor-container {
                 flex: 1;
+                height: 100%;
                 border-radius: 8px;
                 border: 1px solid #d1d5db;
                 overflow: hidden;
-                min-height: 400px;
             }
             .agent-actions {
                 margin-top: 12px;
