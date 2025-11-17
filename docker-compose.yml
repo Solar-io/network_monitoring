@@ -27,6 +27,8 @@ services:
       - ./config:/app/config
       - ./logs:/app/logs
       - ${SSH_KEY_PATH:-~/.ssh}:/root/.ssh:ro
+      - /home/sgallant/sync/software-development:/home/sgallant/sync/software-development
+      - /home/sgallant/.claude/projects:/home/sgallant/.claude/projects:ro
     restart: unless-stopped
     command: /app/scripts/start-services.sh
     healthcheck:
