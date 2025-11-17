@@ -82,7 +82,10 @@ class AgentMonitorService:
         return None
 
     def _determine_agent_status(self, project_dir: Path) -> tuple[str, Optional[float]]:
-        claude_dir_name = str(project_dir).lstrip("/").replace("/", "-")
+        # Claude Code encodes project paths with a leading hyphen
+        # and converts both slashes and underscores to hyphens
+        # e.g., /home/user/my_project -> -home-user-my-project
+        claude_dir_name = "-" + str(project_dir).lstrip("/").replace("/", "-").replace("_", "-")
         claude_dir = self.claude_root / claude_dir_name
         if not claude_dir.exists():
             return "not_running", None
