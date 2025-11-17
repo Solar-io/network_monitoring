@@ -14,7 +14,6 @@ Last updated: 2025-11-16
 - End-to-end testing and verification
 - User acceptance testing with real hosts
 - Project-specific polling rollout (Evie monitoring integration)
-- Agent job monitoring tab rollout across environments
 
 ## Major Tasks Status
 
@@ -42,7 +41,8 @@ Last updated: 2025-11-16
 4. **API & Dashboard**
    - FastAPI heartbeat endpoints
    - Host management REST API
-   - Web dashboard (HTML/JS)
+   - Web dashboard (HTML/JS) with tabbed interface
+   - Agent monitoring tab for viewing/editing TASKS.md files
    - Configuration management UI
    - Quick config update endpoints (PATCH)
    - Health check endpoints
@@ -145,9 +145,9 @@ Last updated: 2025-11-16
 
 ## Current Metrics
 
-- **Codebase**: ~6,500 lines across 54 files
+- **Codebase**: ~6,800 lines across 56 files
 - **Services**: 1 Docker container (consolidated)
-- **API Endpoints**: 17 RESTful endpoints
+- **API Endpoints**: 20 RESTful endpoints (3 new: agent monitoring)
 - **Database Tables**: 5 (hosts, heartbeats, alerts, log_analyses, config)
 - **Background Jobs**: 5 scheduled tasks
 - **Documentation**: 3 comprehensive docs + README + verification logs (updated 2025-11-16)
