@@ -77,6 +77,8 @@ async def get_dashboard_html():
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Network Monitoring Dashboard</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+        <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
         <style>
             * { margin: 0; padding: 0; box-sizing: border-box; }
             body {
@@ -308,32 +310,29 @@ async def get_dashboard_html():
                 display: grid;
                 grid-template-columns: 320px 1fr;
                 gap: 20px;
+                height: calc(100vh - 280px);
+                min-height: 500px;
             }
             .agent-list {
                 background: white;
                 border-radius: 10px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                 padding: 10px;
-                max-height: 600px;
+                height: 100%;
                 overflow-y: auto;
             }
             .agent-item {
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 12px;
+                padding: 14px 12px;
                 border-radius: 8px;
                 cursor: pointer;
+                transition: background 0.15s;
             }
             .agent-item:hover { background: #f3f4f6; }
             .agent-item.selected { background: #e0e7ff; border-left: 4px solid #667eea; }
-            .agent-name { font-weight: 600; color: #111827; }
-            .agent-meta {
-                font-size: 0.8em;
-                color: #6b7280;
-                margin-top: 4px;
-                word-break: break-all;
-            }
+            .agent-name { font-weight: 600; color: #111827; font-size: 0.95em; }
             .status-chip {
                 padding: 4px 10px;
                 border-radius: 999px;
@@ -349,19 +348,29 @@ async def get_dashboard_html():
                 border-radius: 10px;
                 box-shadow: 0 4px 6px rgba(0,0,0,0.1);
                 padding: 20px;
-                min-height: 400px;
+                height: 100%;
                 display: flex;
                 flex-direction: column;
             }
-            textarea {
-                width: 100%;
-                min-height: 320px;
+            .editor-wrapper {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+            }
+            .CodeMirror {
+                height: 100% !important;
                 border-radius: 8px;
                 border: 1px solid #d1d5db;
-                padding: 12px;
-                font-family: 'JetBrains Mono', 'Courier New', monospace;
-                font-size: 0.9em;
-                resize: vertical;
+                font-size: 14px;
+            }
+            .editor-toolbar {
+                border-radius: 8px 8px 0 0;
+                border: 1px solid #d1d5db;
+                background: #f9fafb;
+            }
+            .CodeMirror-scroll {
+                min-height: 300px;
             }
             .agent-actions {
                 margin-top: 12px;
@@ -590,6 +599,7 @@ async def get_dashboard_html():
             const agentDetailsEl = document.getElementById('agent-details');
             let agentsCache = [];
             let selectedAgent = null;
+            let markdownEditor = null;
 
             function statusLabel(status) {
                 return status ? status.replace(/_/g, ' ') : 'unknown';
@@ -615,7 +625,6 @@ async def get_dashboard_html():
                     <div class="agent-item ${agent.name === selectedAgent ? 'selected' : ''}" data-agent="${agent.name}">
                         <div>
                             <div class="agent-name">${agent.name}</div>
-                            <div class="agent-meta">${agent.tasks_file}</div>
                         </div>
                         <span class="status-chip ${agent.status}">${statusLabel(agent.status)}</span>
                     </div>
@@ -669,29 +678,58 @@ async def get_dashboard_html():
                                 <div class="agent-meta">Session: ${relativeTimestamp(agent.status_updated_at)}</div>
                             </div>
                         </div>
-                        <textarea id="agent-editor"></textarea>
+                        <div class="editor-wrapper">
+                            <textarea id="agent-editor"></textarea>
+                        </div>
                         <div class="agent-actions">
                             <button class="save-button" id="agent-save-btn">Save Changes</button>
                             <span class="agent-meta" id="agent-save-status"></span>
                         </div>
                     </div>
                 `;
-                document.getElementById('agent-editor').value = agent.contents;
+
+                // Destroy previous editor instance if exists
+                if (markdownEditor) {
+                    markdownEditor.toTextArea();
+                    markdownEditor = null;
+                }
+
+                // Initialize EasyMDE markdown editor
+                markdownEditor = new EasyMDE({
+                    element: document.getElementById('agent-editor'),
+                    spellChecker: false,
+                    autofocus: false,
+                    placeholder: "Enter task details here...",
+                    status: ['lines', 'words', 'cursor'],
+                    toolbar: [
+                        "bold", "italic", "heading", "|",
+                        "quote", "unordered-list", "ordered-list", "|",
+                        "link", "image", "table", "|",
+                        "preview", "side-by-side", "fullscreen", "|",
+                        "guide"
+                    ],
+                    renderingConfig: {
+                        singleLineBreaks: false,
+                        codeSyntaxHighlighting: true,
+                    }
+                });
+
+                markdownEditor.value(agent.contents);
                 document.getElementById('agent-save-btn').addEventListener('click', () => saveAgentTasks(agent.name));
             }
 
             async function saveAgentTasks(agentName) {
-                const editor = document.getElementById('agent-editor');
                 const statusEl = document.getElementById('agent-save-status');
                 const button = document.getElementById('agent-save-btn');
                 button.disabled = true;
                 statusEl.textContent = 'Saving...';
                 try {
+                    const contents = markdownEditor ? markdownEditor.value() : '';
                     const response = await fetch(`/api/v1/agents/${encodeURIComponent(agentName)}`,
                         {
                             method: 'PUT',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ contents: editor.value }),
+                            body: JSON.stringify({ contents: contents }),
                         });
                     if (!response.ok) throw new Error('Save failed');
                     statusEl.textContent = 'Saved!';
