@@ -252,3 +252,48 @@ Improvements:
 6. Monitor user feedback on new design
 7. Roll out to staging/production after validation
 8. Consider documenting CSS variable system for future developers
+
+---
+
+## Additional Work: Agent Status Detection Fix ✅
+
+### Issue Identified
+User noticed that agent statuses were showing "not_running" for all projects, even though multiple Claude Code agents were actively running (including the current session).
+
+### Root Cause
+The agent monitoring service was not correctly encoding project paths to match Claude Code's directory naming convention:
+- **Claude Code encoding**: Converts both `/` (slashes) AND `_` (underscores) to `-` (hyphens)
+- **Our encoding**: Was only converting slashes to hyphens
+- **Example mismatch**:
+  - Project path: `/home/sgallant/sync/software-development/network_monitoring`
+  - Our encoding: `-home-sgallant-sync-software-development-network_monitoring` ❌
+  - Correct encoding: `-home-sgallant-sync-software-development-network-monitoring` ✓
+
+### Fix Applied
+Updated `src/services/agent_monitor.py` in `_determine_agent_status()`:
+```python
+# OLD: Only replacing slashes
+claude_dir_name = "-" + str(project_dir).lstrip("/").replace("/", "-")
+
+# NEW: Replacing both slashes and underscores
+claude_dir_name = "-" + str(project_dir).lstrip("/").replace("/", "-").replace("_", "-")
+```
+
+### Verification Results
+After the fix, agent statuses now correctly reflect Claude Code activity:
+- ✅ **network_monitoring**: "active" (this session)
+- ✅ **discord_bot**: "idle" (inactive < 15 minutes)
+- ✅ **keyboard_automation**: "idle"
+- ✅ **noet**: "idle"
+- ✅ **CLIProxyAPI**: "idle"
+- ✅ **Other projects**: "not_running" (no Claude Code session detected)
+
+### Git Commit
+- **Commit**: 77153ac - "fix(agent-monitor): correct Claude Code project path encoding"
+- **Files changed**: `src/services/agent_monitor.py`
+
+### Screenshot Evidence
+- `logs/agent_status_fixed.png` - Dashboard showing corrected statuses
+
+### Impact
+This fix ensures accurate monitoring of Claude Code agent activity across all projects, making the Agent Jobs tab a reliable tool for tracking which projects have active or recent Claude Code sessions.
