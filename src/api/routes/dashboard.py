@@ -388,6 +388,14 @@ async def get_dashboard_html():
                 background: #fee2e2;
                 color: #b91c1c;
             }
+            .git-badge.no-git {
+                background: #f3f4f6;
+                color: #6b7280;
+            }
+            .git-badge.no-remote {
+                background: #fef3c7;
+                color: #92400e;
+            }
             .status-chip {
                 padding: 4px 10px;
                 border-radius: 999px;
@@ -691,14 +699,15 @@ async def get_dashboard_html():
                     <div class="agent-item ${agent.name === selectedAgent ? 'selected' : ''}" data-agent="${agent.name}">
                         <div>
                             <div class="agent-name">${agent.name}</div>
-                            ${agent.git_branch ? `
-                                <div class="git-info">
+                            <div class="git-info">
+                                ${agent.git_branch ? `
                                     <span class="git-badge branch" title="Branch: ${agent.git_branch}">🌿 ${agent.git_branch}</span>
                                     ${agent.git_has_uncommitted ? '<span class="git-badge uncommitted" title="Uncommitted changes">⚠️ uncommitted</span>' : ''}
                                     ${agent.git_commits_ahead > 0 ? `<span class="git-badge ahead" title="Commits ahead of remote">↑${agent.git_commits_ahead}</span>` : ''}
                                     ${agent.git_commits_behind > 0 ? `<span class="git-badge behind" title="Commits behind remote">↓${agent.git_commits_behind}</span>` : ''}
-                                </div>
-                            ` : ''}
+                                    ${!agent.git_remote_url ? '<span class="git-badge no-remote" title="No GitHub remote configured">⚠️ no remote</span>' : ''}
+                                ` : '<span class="git-badge no-git" title="Git not initialized">📦 no git</span>'}
+                            </div>
                         </div>
                         <span class="status-chip ${agent.status}">${statusLabel(agent.status)}</span>
                     </div>
