@@ -309,8 +309,8 @@ async def get_dashboard_html():
                 display: grid;
                 grid-template-columns: 320px 1fr;
                 gap: 20px;
-                height: calc(100vh - 280px);
-                min-height: 500px;
+                height: calc(100vh - 200px);
+                min-height: 700px;
             }
             .agent-list {
                 background: white;
@@ -351,15 +351,30 @@ async def get_dashboard_html():
                 display: flex;
                 flex-direction: column;
             }
+            .agent-detail-card {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                min-height: 0;
+                height: 100%;
+            }
+            .agent-detail-header {
+                flex-shrink: 0;
+                display: flex;
+                justify-content: space-between;
+                gap: 20px;
+                margin-bottom: 15px;
+            }
             .editor-wrapper {
                 flex: 1;
                 display: flex;
                 flex-direction: column;
                 min-height: 0;
+                overflow: hidden;
             }
             #monaco-editor-container {
                 flex: 1;
-                height: 100%;
+                min-height: 0;
                 border-radius: 8px;
                 border: 1px solid #d1d5db;
                 overflow: hidden;
@@ -369,6 +384,7 @@ async def get_dashboard_html():
                 display: flex;
                 align-items: center;
                 gap: 12px;
+                flex-shrink: 0;
             }
             .save-button, .refresh-button {
                 background: #667eea;
@@ -658,7 +674,7 @@ async def get_dashboard_html():
             function renderAgentDetails(agent) {
                 agentDetailsEl.innerHTML = `
                     <div class="agent-detail-card">
-                        <div style="display:flex; justify-content:space-between; gap:20px; margin-bottom:15px;">
+                        <div class="agent-detail-header">
                             <div>
                                 <h3 style="margin-bottom:6px;">${agent.name}</h3>
                                 <div class="agent-meta">Project: ${agent.project_path}</div>
